@@ -1,5 +1,6 @@
 classdef ThicknessTerritoriesGlm
 	%% THICKNESSTERRITORIESGLM performs GLM to regress thicknesses, averaged over vascular territories, onto predictors
+    %  Uses:  TerritoryGlmDirector
 	 
 	%  $Revision$ 
  	%  was created $Date$ 

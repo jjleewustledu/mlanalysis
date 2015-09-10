@@ -1,5 +1,8 @@
 classdef ControlsThicknessTerritoriesGlm
-	%% CONTROLSTHICKNESSTERRITORIESGLM performs GLM to regress thicknesses, averaged over vascular territories, onto predictors
+	%% CONTROLSTHICKNESSTERRITORIESGLM performs GLM to regress thicknesses, averaged over vascular territories, 
+    %  onto predictors;it is a superficial fork of ThicknessTerritoriesGlm that references control PET data.  
+    %  It has been used to calculate the normal range of OEF ratios.
+    %  Uses:  TerritoryGlmDirector
 	 
 	%  $Revision$ 
  	%  was created $Date$ 
