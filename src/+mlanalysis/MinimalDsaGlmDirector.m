@@ -30,7 +30,7 @@ classdef MinimalDsaGlmDirector < mlanalysis.Np755GlmDirector
             ho = [];
             oo = [];
             dsa = [];
-            dt = mlfourd.DirTools('mm0*');
+            dt = mlsystem.DirTools('mm0*');
             for d = 1:length(dt.fqdns)
                 try
                     cd(dt.fqdns{d});

@@ -1,11 +1,9 @@
-classdef Test_ThicknessGlmDirector < MyTestCase 
+classdef Test_ThicknessGlmDirector < matlab.unittest.TestCase
 	%% TEST_THICKNESSGLMDIRECTOR  
 
-	%  Usage:  >> runtests tests_dir  
-	%          >> runtests mlanalysis.Test_ThicknessGlmDirector % in . or the matlab path 
-	%          >> runtests mlanalysis.Test_ThicknessGlmDirector:test_nameoffunc 
-	%          >> runtests(mlanalysis.Test_ThicknessGlmDirector, Test_Class2, Test_Class3, ...) 
-	%  See also:  package xunit 
+	%  Usage:  >> results = run(mlpet_unittest.Test_ThicknessGlmDirector)
+ 	%          >> result  = run(mlpet_unittest.Test_ThicknessGlmDirector, 'test_CBF')
+ 	%  See also:  file:///Applications/Developer/MATLAB_R2014b.app/help/matlab/matlab-unit-test-framework.html
 
 	%  $Revision$ 
  	%  was created $Date$ 
@@ -17,11 +15,11 @@ classdef Test_ThicknessGlmDirector < MyTestCase
  	 
 
 	properties 
- 		 sessionPathLocal = '/Volumes/PassportStudio/cvl/np755/mm01-020_p7377_2009feb5';
+ 		 sessionPathLocal = '/Volumes/PassportStudio2/cvl/np755/mm01-020_p7377_2009feb5';
          tgd
  	end 
 
-	methods 
+	methods (Test) 
         function test_CBF(this)
             disp(this.tgd.createOnePredictorModel('CBF'))
         end
@@ -69,9 +67,12 @@ classdef Test_ThicknessGlmDirector < MyTestCase
         end
  		function test_createModel(this) 
             disp(this.tgd.createModel)
- 		end 
+        end 
+    end
+    
+    methods
  		function this = Test_ThicknessGlmDirector(varargin) 
- 			this = this@MyTestCase(varargin{:}); 
+ 			this = this@matlab.unittest.TestCase(varargin{:}); 
             cd(this.sessionPathLocal);
             fprintf('Working Session:  %s\n', this.sessionPathLocal);
             this.tgd = mlanalysis.ThicknessGlmDirector.factory('SessionPath', this.sessionPathLocal);

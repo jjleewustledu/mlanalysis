@@ -210,8 +210,8 @@ classdef ThicknessTerritoriesGlm
             p = inputParser;
             addParameter(p, 'Exclusions', [],            @(x) isnumeric(x) || islogical(x));
             addParameter(p, 'StudyPath',  pwd,           @(x) lexist(x, 'dir'));
-            addParameter(p, 'Territory', this.TERRITORY, @(x) lstrfind(mlsurfer.Parcellations.TERRITORIES, x));
-            addParameter(p, 'Statistic', 'mean',         @(x) lstrfind(mlanalysis.TerritoryGlmDirector.SUPPORTED_STATS, x));
+            addParameter(p, 'Territory', this.TERRITORY, @(x) lstrfind(x, mlsurfer.Parcellations.TERRITORIES));
+            addParameter(p, 'Statistic', 'mean',         @(x) lstrfind(x, mlanalysis.TerritoryGlmDirector.SUPPORTED_STATS));
             parse(p, varargin{:});
             this.studyPath  = p.Results.StudyPath;
             this.territory  = p.Results.Territory;
@@ -219,7 +219,7 @@ classdef ThicknessTerritoriesGlm
             this.statistic  = p.Results.Statistic;
             
             import mlanalysis.*;
-            dt = mlfourd.DirTools(this.SESSION_PATTERN);
+            dt = mlsystem.DirTools(this.SESSION_PATTERN);
             assert(dt.length > 0, 'Has the studyPath been set correctly?');
             this.sessionsLength_ = dt.length;
             this.session_ = {};
@@ -257,8 +257,8 @@ classdef ThicknessTerritoriesGlm
             cd(this.studyPath);
             
             %% DO EXACTLY ONCE; KLUDGE
-            %if (~isempty(this.oefRatio_))
-            %    this.oefRatio_ = this.oefRatio_ ./ this.averaged_cereb_nqoef; end            
+            if (~isempty(this.oefRatio_))
+                this.oefRatio_ = this.oefRatio_ ./ this.averaged_cereb_nqoef; end            
         end
         function this = accumulateDataset(this, glmDirector, datasetName)
             if (this.datasetSwitches(datasetName))

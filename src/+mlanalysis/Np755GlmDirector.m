@@ -209,13 +209,13 @@ classdef Np755GlmDirector < mlanalysis.Np755GlmDirectorComponent
             import mlanalysis.*;
             fprintf('GlmDirector.slicesdir:  working in filesystem location %s\n', pwd);
             try
-                [~,r] = mlfsl.FslVisitor.slicesdir( ...
+                [~,~] = mlfsl.FslVisitor.slicesdir( ...
                         ['*_on_' GlmDirectorComponent.T1_FILEPREFIX '*.nii.gz'], ...
-                        struct('p', [GlmDirectorComponent.T1_FILEPREFIX '.nii.gz'])); %#ok<NASGU>
+                        struct('p', [GlmDirectorComponent.T1_FILEPREFIX '.nii.gz'])); 
             catch ME
-                handexcept(ME, sprintf('GlmDirector.slicesdir:\n%s%s\n', 'mlfsl.FslVisitor.slicesdir:\n', r)); %#ok<NODEF>
+                handexcept(ME, sprintf('GlmDirector.slicesdir:\n%s%s\n', 'mlfsl.FslVisitor.slicesdir:\n', r)); 
             end
-            dt = mlfourd.DirTools(['*' GlmDirectorComponent.T1_FILEPREFIX '*.nii.gz']);
+            dt = mlsystem.DirTools(['*' GlmDirectorComponent.T1_FILEPREFIX '*.nii.gz']);
             assert(dt.length > 0, 'GlmDirector.slicesdir:  found no NIfTI files\n');
         end
         function val = z(val)
@@ -253,10 +253,10 @@ classdef Np755GlmDirector < mlanalysis.Np755GlmDirectorComponent
  			%  Usage:  this = Np755GlmDirector('SessionPath', aSessionPath, 'Territory', aTerritory) 
  			
             p = inputParser;
-            addParamValue(p, 'SessionPath', pwd, ...
+            addParameter(p, 'SessionPath', pwd, ...
                               @(x) lexist(x, 'dir') && ~lstrfind(x, {'fsl' 'mri' 'surf' 'perfusion_4dfp'}));
-            addParamValue(p, 'Territory', 'all', ...
-                              @(x) lstrfind(mlsurfer.Parcellations.TERRITORIES, x));
+            addParameter(p, 'Territory', 'all', ...
+                              @(x) lstrfind(x, mlsurfer.Parcellations.TERRITORIES));
             parse(p, varargin{:});            
             
             this = this.mapDsa(p);

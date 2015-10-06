@@ -1,6 +1,7 @@
 classdef AnalysisDirector 
-	%% ANALYSISDIRECTOR works with a builder design pattern for data analysis%  Version $Revision$ was created $Date$ by $Author$,  
- 	%  last modified $LastChangedDate$ and checked into svn repository $URL$ 
+	%% ANALYSISDIRECTOR - INACTIVE - works with a builder design pattern for data analysis%  Version $Revision$ was created $Date$ by $Author$,  
+ 	
+    %  last modified $LastChangedDate$ and checked into svn repository $URL$ 
  	%  Developed on Matlab 7.13.0.564 (R2011b) 
  	%  $Id$ 
  	%  N.B. classdef (Sealed, Hidden, InferiorClasses = {?class1,?class2}, ConstructOnLoad) 

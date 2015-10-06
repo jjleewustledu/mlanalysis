@@ -24,7 +24,7 @@ classdef GlmDirector < mlanalysis.GlmDirectorComponent
             catch ME
                 handexcept(ME, sprintf('GlmDirector.slicesdir:\n%s%s\n', 'mlfsl.FslVisitor.slicesdir:\n', r)); %#ok<NODEF>
             end
-            dt = mlfourd.DirTools(['*' GlmDirectorComponent.T1_FILEPREFIX '*.nii.gz']);
+            dt = mlsystem.DirTools(['*' GlmDirectorComponent.T1_FILEPREFIX '*.nii.gz']);
             assert(dt.length > 0, 'GlmDirector.slicesdir:  found no NIfTI files\n');
         end
         function val = z(val)

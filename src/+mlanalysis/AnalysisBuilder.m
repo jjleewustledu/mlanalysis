@@ -1,6 +1,7 @@
 classdef AnalysisBuilder 
-	%% ANALYSISBUILDER is a builder design pattern for imaging analysis objects%  Version $Revision$ was created $Date$ by $Author$,  
- 	%  last modified $LastChangedDate$ and checked into svn repository $URL$ 
+	%% ANALYSISBUILDER - INACTIVE - is a builder design pattern for imaging analysis objects%  Version $Revision$ was created $Date$ by $Author$,  
+ 	
+    %  last modified $LastChangedDate$ and checked into svn repository $URL$ 
  	%  Developed on Matlab 7.13.0.564 (R2011b) 
  	%  $Id$ 
  	%  N.B. classdef (Sealed, Hidden, InferiorClasses = {?class1,?class2}, ConstructOnLoad) 

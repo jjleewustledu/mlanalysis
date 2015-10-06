@@ -20,7 +20,7 @@ classdef DsaGlmDirector < mlanalysis.Np755GlmDirector
             if (~exist('studyPth', 'var'))
                 studyPth = pwd; end
             cd(studyPth);
-            dt   = mlfourd.DirTools('mm0*');
+            dt   = mlsystem.DirTools('mm0*');
             mdls = struct([]); 
             dss  = struct([]);
             for d = 1:length(dt.fqdns)
@@ -56,7 +56,7 @@ classdef DsaGlmDirector < mlanalysis.Np755GlmDirector
             tauHo = [];
             oc = [];
             dsa = [];
-            dt = mlfourd.DirTools('mm0*');
+            dt = mlsystem.DirTools('mm0*');
             for d = 1:length(dt.fqdns)
                 try
                     cd(dt.fqdns{d});

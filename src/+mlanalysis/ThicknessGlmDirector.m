@@ -1,5 +1,5 @@
 classdef ThicknessGlmDirector < mlanalysis.Np755GlmDirectorDecorator
-	%% THICKNESSGLMDIRECTOR implements decoarator design patterns for GLM analysis
+    %% THICKNESSGLMDIRECTOR implements decorator design patterns for GLM analysis
     %  that regress cortical thickness onto predictor variables.
     %  Usage:   % from the session path:
     %           tgd = ThicknessGlmDirector
@@ -7,13 +7,13 @@ classdef ThicknessGlmDirector < mlanalysis.Np755GlmDirectorDecorator
     %           % from the study path:
     %           [glmModel, dataset] = ThicknessGlmDirector.createStudyModel
 
-	%  $Revision$ 
- 	%  was created $Date$ 
- 	%  by $Author$,  
- 	%  last modified $LastChangedDate$ 
- 	%  and checked into repository $URL$,  
- 	%  developed on Matlab 8.1.0.604 (R2013a) 
- 	%  $Id$ 
+    %  $Revision$
+    %  was created $Date$
+    %  by $Author$,
+    %  last modified $LastChangedDate$
+    %  and checked into repository $URL$,
+    %  developed on Matlab 8.1.0.604 (R2013a)
+    %  $Id$
     
     properties 
         thicknessMetric
@@ -31,7 +31,7 @@ classdef ThicknessGlmDirector < mlanalysis.Np755GlmDirectorDecorator
     
     methods (Static)
         function tgd = factory(varargin)
-            %% FACTORY returns a ThicknessGlmDirector/Np755GlmDirector
+            %% FACTORY returns a Np755GlmDirector decorated with ThicknessGlmDirector
             %  Usage:   tgd = ThicknessGlmDirector.factory([varargin for Np755GlmDirector])
             
             import mlanalysis.*;
@@ -42,7 +42,7 @@ classdef ThicknessGlmDirector < mlanalysis.Np755GlmDirectorDecorator
         function [mdls,dss] = createStudyModels(studyPth)
             if (~exist('studyPth', 'var')); studyPth = pwd; end
             cd(studyPth);
-            dt = mlfourd.DirTools('mm0*');
+            dt = mlsystem.DirTools('mm0*');
             for d = 1:length(dt.fqdns)
                 try
                     cd(dt.fqdns{d});
@@ -67,7 +67,7 @@ classdef ThicknessGlmDirector < mlanalysis.Np755GlmDirectorDecorator
         function [mdls,dss] = createOnePredictorStudyModels(studyPth)
             if (~exist('studyPth', 'var')); studyPth = pwd; end
             cd(studyPth);
-            dt = mlfourd.DirTools('mm0*');
+            dt = mlsystem.DirTools('mm0*');
             for d = 1:length(dt.fqdns)
                 try
                     cd(dt.fqdns{d});
@@ -106,7 +106,7 @@ classdef ThicknessGlmDirector < mlanalysis.Np755GlmDirectorDecorator
             oc = [];
             dsa = [];
             thicknessAbsolute = [];
-            dt = mlfourd.DirTools('mm0*');
+            dt = mlsystem.DirTools('mm0*');
             for d = 1:length(dt.fqdns)
                 try
                     cd(dt.fqdns{d});
@@ -143,7 +143,7 @@ classdef ThicknessGlmDirector < mlanalysis.Np755GlmDirectorDecorator
             assert(ischar(predictor));
             pred = [];
             thicknessAbsolute = [];
-            dt = mlfourd.DirTools('mm0*');
+            dt = mlsystem.DirTools('mm0*');
             for d = 1:length(dt.fqdns)
                 try
                     cd(dt.fqdns{d});
@@ -232,12 +232,14 @@ classdef ThicknessGlmDirector < mlanalysis.Np755GlmDirectorDecorator
         end
 
  		function this = ThicknessGlmDirector(varargin)
- 			%% THICKNESSGLMDIRECTOR 
- 			%  Usage:  this = ThicknessGlmDirector(...) 
+ 			%% THICKNESSGLMDIRECTOR is a decorator for Np755GlmDirectorComponents
+ 			%  Usage:  this = ThicknessGlmDirector(a_Np755GlmDirectorComponent) 
             
             this = this@mlanalysis.Np755GlmDirectorDecorator(varargin{:});	 
  		end 
     end 
+    
+    %% PRIVATE 
     
     methods (Access = 'private')
         function ds  = theDatasetNoDiff(this)

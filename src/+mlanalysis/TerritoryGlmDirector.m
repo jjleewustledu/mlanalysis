@@ -10,7 +10,8 @@ classdef TerritoryGlmDirector
  	%  $Id$ 
     
     properties (Constant)
-        SUPPORTED_STATS       = { 'mean' 'median' 'std' }
+        SUPPORTED_STATS  = { 'mean' 'median' 'std' }
+        OEFNQ_FILEPREFIX = 'oefnq_default_161616fwhh'
     end
 
 	properties (Dependent)
@@ -346,7 +347,7 @@ classdef TerritoryGlmDirector
             t = this.territory_;
         end
         function this = set.territory(this, t)
-            assert(lstrfind(mlsurfer.Parcellations.TERRITORIES, t));
+            assert(lstrfind(t, mlsurfer.Parcellations.TERRITORIES));
             this.territory_ = t;
         end
         function sp   = get.sessionPath(this)
@@ -377,13 +378,14 @@ classdef TerritoryGlmDirector
  			%% TERRITORYGLMDIRECTOR specifies the territory over which to average freesurfer ROIs; default is "mca" 
             
             p = inputParser;
-            addParamValue(p, 'Territory',  'all',  @(x) lstrfind(x, mlsurfer.Parcellations.TERRITORIES));
-            addParamValue(p, 'SessionPath', pwd,   @(x) lexist(x, 'dir'));
-            addParamValue(p, 'Statistic',  'mean', @(x) lstrfind(x, mlanalysis.TerritoryGlmDirector.SUPPORTED_STATS));
+            addParameter(p, 'Territory',  'all',  @(x) lstrfind(x, mlsurfer.Parcellations.TERRITORIES));
+            addParameter(p, 'SessionPath', pwd,   @(x) lexist(x, 'dir'));
+            addParameter(p, 'Statistic',  'mean', @(x) lstrfind(x, mlanalysis.TerritoryGlmDirector.SUPPORTED_STATS));
             parse(p, varargin{:});
             this.territory   = p.Results.Territory;
             this.sessionPath = p.Results.SessionPath;
             this.statistic   = p.Results.Statistic;
+            this.oefnqFileprefix_ = this.OEFNQ_FILEPREFIX;
  		end 
  	end 
     

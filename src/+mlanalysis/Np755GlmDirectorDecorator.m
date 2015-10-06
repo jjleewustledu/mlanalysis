@@ -126,8 +126,8 @@ classdef Np755GlmDirectorDecorator < mlanalysis.Np755GlmDirectorComponent
         
  		function this = Np755GlmDirectorDecorator(varargin) 
  			%% GLMDIRECTORDECORATOR 
-            %  Usage:  obj = GlmDirectorDecorator([aGlmDirector])
-            %                                      ^ default is a GlmDirector
+            %  Usage:  obj = Np755GlmDirectorDecorator([a_Np755GlmDirectorComponent])
+            %                                           ^ default is a Np755GlmDirectorComponent
             
             p = inputParser;
             addOptional(p, 'cmp', mlanalysis.Np755GlmDirector, @(x) isa(x, 'mlanalysis.Np755GlmDirectorComponent'));

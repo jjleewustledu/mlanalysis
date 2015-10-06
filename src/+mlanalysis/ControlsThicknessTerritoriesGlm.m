@@ -1,8 +1,8 @@
 classdef ControlsThicknessTerritoriesGlm
-	%% CONTROLSTHICKNESSTERRITORIESGLM performs GLM to regress thicknesses, averaged over vascular territories, 
-    %  onto predictors;it is a superficial fork of ThicknessTerritoriesGlm that references control PET data.  
-    %  It has been used to calculate the normal range of OEF ratios.
-    %  Uses:  TerritoryGlmDirector
+	%% CONTROLSTHICKNESSTERRITORIESGLM performs GLM to regress thicknesses onto predictors 
+    %  with averaging over vascular territories; it is a superficial fork of ThicknessTerritoriesGlm 
+    %  that references control PET data.  It calculates the normal range of OEF ratios.
+    %  See also:  TerritoryGlmDirector
 	 
 	%  $Revision$ 
  	%  was created $Date$ 
@@ -212,8 +212,8 @@ classdef ControlsThicknessTerritoriesGlm
             p = inputParser;
             addParameter(p, 'Exclusions', [],            @(x) isnumeric(x) || islogical(x));
             addParameter(p, 'StudyPath',  pwd,           @(x) lexist(x, 'dir'));
-            addParameter(p, 'Territory', this.TERRITORY, @(x) lstrfind(mlsurfer.Parcellations.TERRITORIES, x));
-            addParameter(p, 'Statistic', 'mean',         @(x) lstrfind(mlanalysis.TerritoryGlmDirector.SUPPORTED_STATS, x));
+            addParameter(p, 'Territory', this.TERRITORY, @(x) lstrfind(x, mlsurfer.Parcellations.TERRITORIES));
+            addParameter(p, 'Statistic', 'mean',         @(x) lstrfind(x, mlanalysis.TerritoryGlmDirector.SUPPORTED_STATS));
             parse(p, varargin{:});
             this.studyPath  = p.Results.StudyPath;
             this.territory  = p.Results.Territory;
@@ -221,7 +221,7 @@ classdef ControlsThicknessTerritoriesGlm
             this.statistic  = p.Results.Statistic;
             
             import mlanalysis.*;
-            dt = mlfourd.DirTools(this.SESSION_PATTERN);
+            dt = mlsystem.DirTools(this.SESSION_PATTERN);
             assert(dt.length > 0, 'Has the studyPath been set correctly?');
             this.sessionsLength_ = dt.length;
             this.session_ = {};

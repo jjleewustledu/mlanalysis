@@ -1,5 +1,6 @@
 classdef PetAnalysisDirector < mlanalysis.AnalysisDirector
-	%% PETANALYSISDIRECTOR  director to an analysis builder design pattern
+	%% PETANALYSISDIRECTOR - INACTIVE - director to an analysis builder design pattern
+    
 	%  $Revision$
  	%  was created $Date$
  	%  by $Author$, 
