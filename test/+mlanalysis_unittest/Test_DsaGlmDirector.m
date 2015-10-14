@@ -15,7 +15,7 @@ classdef Test_DsaGlmDirector < matlab.unittest.TestCase
 
 	properties 
  		testObj 
-        sessionPathLocal = '/Volumes/InnominateHD3/cvl/np797/mm01-000_p7395_2009mar12';
+        sessionPathLocal = '/Volumes/PassportStudio2/cvl/np755/mm01-020_p7377_2009feb5';
  	end 
 
 	methods (Test) 

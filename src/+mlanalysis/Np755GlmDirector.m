@@ -206,16 +206,16 @@ classdef Np755GlmDirector < mlanalysis.Np755GlmDirectorComponent
             error('mlanalysis:notImplemented', 'GlmDirector.freeviewFsanatomical');
         end
         function       slicesdir
-            import mlanalysis.*;
+            import mlanalysis.* mlsurfer.*;
             fprintf('GlmDirector.slicesdir:  working in filesystem location %s\n', pwd);
             try
                 [~,~] = mlfsl.FslVisitor.slicesdir( ...
-                        ['*_on_' GlmDirectorComponent.T1_FILEPREFIX '*.nii.gz'], ...
-                        struct('p', [GlmDirectorComponent.T1_FILEPREFIX '.nii.gz'])); 
+                        ['*_on_' SurferFilesystem.T1_FILEPREFIX '*.nii.gz'], ...
+                        struct('p', [SurferFilesystem.T1_FILEPREFIX '.nii.gz'])); 
             catch ME
                 handexcept(ME, sprintf('GlmDirector.slicesdir:\n%s%s\n', 'mlfsl.FslVisitor.slicesdir:\n', r)); 
             end
-            dt = mlsystem.DirTools(['*' GlmDirectorComponent.T1_FILEPREFIX '*.nii.gz']);
+            dt = mlsystem.DirTools(['*' SurferFilesystem.T1_FILEPREFIX '*.nii.gz']);
             assert(dt.length > 0, 'GlmDirector.slicesdir:  found no NIfTI files\n');
         end
         function val = z(val)

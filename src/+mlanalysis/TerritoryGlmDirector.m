@@ -362,6 +362,11 @@ classdef TerritoryGlmDirector
     
 	methods 
         function s    = directedParamStat(this, p)
+            %% DIRECTEDPARAMSTAT uses private methods to call ParcellationSegments static methods to return 
+            %  a statistic for parameter_name.
+            %  Usage:  statistic = this.directedParamStat(parameter_name)
+            %          ^ numeric                          ^ char
+            
             switch (this.statistic)
                 case 'mean'
                     s = this.parameterMeans(p);
@@ -424,13 +429,13 @@ classdef TerritoryGlmDirector
     end
     
     methods (Access = 'private')
-        function m = parameterMeans(this, p)   
+        function m = parameterMeans(this, p)
             import mlsurfer.*;
             lh = ParcellationSegments.asMean(p, 'lh', 'Territory', this.territory, 'SessionPath', this.sessionPath);
             rh = ParcellationSegments.asMean(p, 'rh', 'Territory', this.territory, 'SessionPath', this.sessionPath);
             m  = [lh; rh];
         end
-        function m = parameterMedians(this, p)   
+        function m = parameterMedians(this, p)
             import mlsurfer.*;
             lh = ParcellationSegments.asMedian(p, 'lh', 'Territory', this.territory, 'SessionPath', this.sessionPath);
             rh = ParcellationSegments.asMedian(p, 'rh', 'Territory', this.territory, 'SessionPath', this.sessionPath);

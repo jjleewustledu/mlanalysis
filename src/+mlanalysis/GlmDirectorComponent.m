@@ -8,10 +8,6 @@ classdef GlmDirectorComponent
  	%  and checked into repository $URL$,  
  	%  developed on Matlab 8.1.0.604 (R2013a) 
  	%  $Id$ 
-    
-    properties (Constant)
-        T1_FILEPREFIX = mlsurfer.SurferBuilderPrototype.T1_FILEPREFIX;
-    end
 
 	methods (Abstract)
         ds  = theDatasetOnePredictor(this)

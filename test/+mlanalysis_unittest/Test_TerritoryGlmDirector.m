@@ -14,15 +14,13 @@ classdef Test_TerritoryGlmDirector < matlab.unittest.TestCase
  	%  $Id$ 
 
 	properties 
-        sessionPathLocal = '/Volumes/InnominateHD3/cvl/np755/mm01-020_p7377_2009feb5';
+        sessionPathLocal = '/Volumes/PassportStudio2/cvl/np755/mm01-020_p7377_2009feb5';
  		testObj 
  	end 
 
 	methods (Test) 
- 		function test_createModel(this) 
-            mdl = this.testObj.createModel;
-            this.assertNotEmpty(mdl);
- 			disp(mdl);
+ 		function test_ctor(this) 
+ 			disp(this.testObj)
  		end 
  	end 
 
@@ -31,9 +29,7 @@ classdef Test_TerritoryGlmDirector < matlab.unittest.TestCase
             import mlanalysis.*;
             pwd0 = pwd;
             cd(this.sessionPathLocal);
- 			this.testObj = TerritoryGlmDirector( ...
-                           ThicknessGlmDirector( ...
-                               Np755GlmDirector('SessionPath', this.sessionPathLocal, 'Territory', 'mca'))); 
+ 			this.testObj = TerritoryGlmDirector('SessionPath', this.sessionPathLocal, 'Territory', 'mca'); 
             cd(pwd0);
  		end 
  	end 

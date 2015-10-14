@@ -15,7 +15,7 @@ classdef Test_ThicknessGlmDirector < matlab.unittest.TestCase
 
 	properties 
  		testObj         
-        sessionPathLocal = '/Volumes/InnominateHD3/cvl/np755/mm01-020_p7377_2009feb5';
+        sessionPathLocal = '/Volumes/PassportStudio2/cvl/np755/mm01-020_p7377_2009feb5';
  	end 
 
 	methods (Test) 
@@ -69,9 +69,6 @@ classdef Test_ThicknessGlmDirector < matlab.unittest.TestCase
             this.assertNotEmpty(mdl);
  			disp(mdl);
         end 
-        function test_properties(this)            
-            assertPropertiesNotEmpty(this.testObj);
-        end
  	end 
 
  	methods (TestClassSetup) 
