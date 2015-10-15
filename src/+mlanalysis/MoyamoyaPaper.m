@@ -1,5 +1,5 @@
 classdef MoyamoyaPaper < mlsurfer.SurferData 
-	%% MOYAMOYAPAPER   
+	%% MOYAMOYAPAPER is under rapid prototyping  
 
 	%  $Revision$ 
  	%  was created $Date$ 
@@ -17,6 +17,146 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
  	end 
 
 	methods (Static)
+        function visitIdSegstats(sessPth)
+            import mlfourd.* mlanalysis.*;
+            niiFilenames = {'oo_sumt_737353fwhh_on_T1' 'ho_sumt_737353fwhh_on_T1'};
+            hemis        = {'lh' 'rh'};
+            for n = 1:2
+                bldr.fslPath = fullfile(sessPth, 'fsl', '');
+                bldr.mriPath = fullfile(sessPth, 'mri', '');
+                bldr.product = NIfTId.load(fullfile(bldr.fslPath, niiFilenames{n}));
+                for h = 1:2
+                    MoyamoyaPaper.visitIdSegstats_(bldr, hemis{h});
+                end
+            end
+        end
+        function visitIdSegstats_(bldr, hemi)
+            import mlsurfer.* mlanalysis.*;
+            cd(bldr.fslPath);
+            opts2              = Mri_segstatsOptions;
+            opts2.seg          = fullfile(bldr.mriPath, 'aparc.a2009s+aseg.mgz');
+            opts2.ctab_default = true;
+            opts2.id           = MoyamoyaPaper.idsAparcA2009s(hemi);
+            opts2.i            = bldr.product.fqfilename;
+            opts2.sum          = fullfile(bldr.fslPath, [hemi '_' bldr.product.fileprefix '.stats']);            
+            mlbash(sprintf('mri_segstats %s', char(opts2)));
+        end
+        function num = idsAparcA2009s(hemi)
+            num = nan; %#ok<NASGU>
+            switch (hemi)
+                case 'lh'
+                    num = 11100 + (1:75);
+                    num = [7 8 num]; % add cerebellum
+                case 'rh'
+                    num = 12100 + (1:75);
+                    num = [46 47 num]; % add cerebellum
+                otherwise
+                    error('mlanalysis:unsupportedParamValue', 'MoyamoyaPaper.idsAparcA2009s.hemi->%s', hemi);
+            end
+        end
+        
+        function registerPET(sessPth)
+            import mlanalysis.*;
+            if (lexist( ...
+                    fullfile(sessPth, 'ECAT_EXACT', '962_4dfp', [str2pnum(sessPth) 'oc1.nii.gz'])))
+                MoyamoyaPaper.registerPET4(sessPth);
+            else
+                MoyamoyaPaper.registerPET3(sessPth);
+            end
+        end        
+        function registerPET4(sessPth)
+            import mlfourd.* mlanalysis.*;
+            
+            pwd0 = pwd;
+            cd(fullfile(sessPth, 'ECAT_EXACT', '962_4dfp', ''));
+            pnum = str2pnum(sessPth);
+            ho = NIfTId.load([pnum 'ho1_sumt']);
+            oo = NIfTId.load([pnum 'oo1_sumt']);
+            oc = NIfTId.load([pnum 'oc1']);
+            tr = NIfTId.load([pnum 'tr1']);
+            
+            all = MoyamoyaPaper.combinePET([pnum 'all'], ho, oo, oc, tr);            
+            all.save
+            
+            PPS = [7.31 7.31 5.33];
+            bho = BlurringNIfTId(ho, 'blur', PPS);
+            boo = BlurringNIfTId(oo, 'blur', PPS);
+            boc = BlurringNIfTId(oc, 'blur', PPS);
+            btr = BlurringNIfTId(tr, 'blur', PPS);
+            bho.save
+            boo.save
+            boc.save
+            btr.save
+            
+            ball = MoyamoyaPaper.combinePET([pnum 'all_737353fwhh'], bho, boo, boc, btr);
+            ball.save
+
+            cd(pwd0);
+        end
+        function registerPET3(sessPth)
+            import mlfourd.* mlanalysis.*;
+            
+            pwd0 = pwd;
+            cd(fullfile(sessPth, 'ECAT_EXACT', '962_4dfp', ''));
+            pnum = str2pnum(sessPth);
+            ho = NIfTId.load([pnum 'ho1_sumt']);
+            oo = NIfTId.load([pnum 'oo1_sumt']);
+            tr = NIfTId.load([pnum 'tr1']);
+            
+            all = MoyamoyaPaper.combinePET([pnum 'all'], ho, oo, tr);            
+            all.save
+            
+            PPS = [7.31 7.31 5.33];
+            bho = BlurringNIfTId(ho, 'blur', PPS);
+            boo = BlurringNIfTId(oo, 'blur', PPS);
+            btr = BlurringNIfTId(tr, 'blur', PPS);
+            bho.save
+            boo.save
+            btr.save
+            
+            ball = MoyamoyaPaper.combinePET([pnum 'all_737353fwhh'], bho, boo, btr);
+            ball.save
+
+            cd(pwd0);
+        end
+        function flirt(sessPth)
+            import mlanalysis.*;
+            if (lexist( ...
+                    fullfile(sessPth, 'ECAT_EXACT', '962_4dfp', [str2pnum(sessPth) 'oc1.nii.gz'])))
+                tracers = {'ho' 'oo' 'oc' 'tr'};
+                ext = {'_sumt' '_sumt' '' ''};
+                MoyamoyaPaper.flirt_(sessPth, tracers, ext, 1);
+            else
+                tracers = {'ho' 'oo' 'tr'};
+                ext = {'_sumt' '_sumt' ''};
+                MoyamoyaPaper.flirt_(sessPth, tracers, ext, 1);
+            end
+        end
+        function flirt_(sessPth, tracers, ext, sid)
+            pnum = str2pnum(sessPth);
+            mlbash(sprintf('mri_convert %s/mri/T1.mgz %s/mri/T1.nii.gz', sessPth, sessPth));
+            mlbash(sprintf( ...
+                ['/usr/local/fsl/bin/flirt ' ...
+                 '-in   %s/ECAT_EXACT/962_4dfp/%sall_737353fwhh.nii.gz ' ...
+                 '-ref  %s/mri/T1.nii.gz ' ...
+                 '-out  %s/fsl/all_737353fwhh_on_T1.nii.gz ' ...
+                 '-omat %s/fsl/all_737353fwhh_on_T1.mat ' ...
+                 '-bins 256 -cost normmi ' ...
+                 '-searchrx -90 90 -searchry -90 90 -searchrz -90 90 ' ...
+                 '-dof 6 -interp trilinear'], ...
+                 sessPth, pnum, sessPth, sessPth, sessPth));
+             for t = 1:length(tracers)
+                 mlbash(sprintf( ...
+                     ['/usr/local/fsl/bin/flirt ' ...
+                      '-in %s/ECAT_EXACT/962_4dfp/%s%s%i%s_737353fwhh.nii.gz ' ...
+                      '-applyxfm -init %s/fsl/all_737353fwhh_on_T1.mat ' ...
+                      '-out %s/fsl/%s%s_737353fwhh_on_T1.nii.gz ' ...
+                      '-paddingsize 0.0 -interp trilinear ' ...
+                      '-ref %s/mri/T1.nii.gz'], ...
+                      sessPth, pnum, tracers{t}, sid, ext{t}, sessPth, sessPth, tracers{t}, ext{t}, sessPth));
+             end
+        end
+        
         function visualizeOefnq
             dt = mlsystem.DirTool('mm0*');
             assert(dt.length > 0);
@@ -29,22 +169,18 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             this = mlanalysis.MoyamoyaPaper('Parameter', 'thickness', 'Territory', terr);
             oefratio             = this.cohortOefratio;
             [thickness,ids,sess] = this.cohortThickness;
-            %thicknessIndex = sd.cohortThicknessIndex;
 
-            oefratioSubject       = cellfun(@mean, oefratio)';
-            thicknessSubject      = cellfun(@mean, thickness)';
-            %thicknessIndexSubject = cellfun(@mean, thicknessIndex)'; %#ok<NASGU>
+            oefratioSubject  = cellfun(@mean, oefratio)';
+            thicknessSubject = cellfun(@mean, thickness)';
+            
+            inclusions = [ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ];
+            oefratioSubject  = oefratioSubject( inclusions == 1);
+            thicknessSubject = thicknessSubject(inclusions == 1);
             
             this.plot(oefratioSubject, thicknessSubject, this.territory);
             cftool(oefratioSubject, thicknessSubject);
             x = oefratioSubject;
-            y = thicknessSubject;
-            
-%             Nsubjs = length(oefratio);
-%             Nparcs = length(oefratio{1});            
-%             oefratioVec       = reshape(cell2mat(oefratio),       [Nparcs*Nsubjs 1]);
-%             thicknessVec      = reshape(cell2mat(thickness),      [Nparcs*Nsubjs 1]);
-%             thicknessIndexVec = reshape(cell2mat(thicknessIndex), [Nparcs*Nsubjs 1]);             
+            y = thicknessSubject;            
         end        
         function [x,y] = plotAge2Thickness(terr)       
             this = mlanalysis.MoyamoyaPaper('Parameter', 'thickness', 'Territory', terr);
@@ -127,17 +263,14 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             plot(X1,Y1,'MarkerSize',10,'Marker','o','LineStyle','none');
 
             % Create xlabel
-            xlabel(sprintf('OEF(%s) / OEF(cerebellum)', upper(terr(1:3))),'FontSize',15.4);
+            xlabel(sprintf('OEF(%s) / OEF(cerebellum)', upper(terr)),'FontSize',15.4);
 
             % Create ylabel
             ylabel('thickness / mm','FontSize',15.4);
 
             % Create title
-            title(sprintf('30 patients, maximal %s territory', upper(terr(1:3))), 'FontSize',15.4);
-        end
-        
-        
-        
+            title(sprintf('30 patients, %s territory', upper(terr)), 'FontSize',15.4);
+        end        
         function plotLinRegress(this, X1, Y1, terr)
             %CREATEFIGURE(X1, Y1)
             %  X1:  vector of x data
@@ -239,7 +372,22 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             % "Show equations" was selected
             this.showEquations(fittypesArray1, coeffs1, 3, axes1);
         end
-
+    end
+    
+    %% PRIVATE
+    
+    methods (Static, Access = 'private')
+        function all = combinePET(filePrefix, varargin)
+            all = varargin{1}.clone;
+            all.fileprefix = filePrefix;
+            all.img = varargin{1}.img/sum(sum(sum(varargin{1}.img)));
+            for i = 2:length(varargin)
+                all.img = all.img + varargin{i}.img/sum(sum(sum(varargin{i}.img)));
+            end
+        end
+    end
+    
+    methods (Access = 'private')
         %-------------------------------------------------------------------------%
         function setLineOrder(this, axesh1, newLine1, associatedLine1)
             %SETLINEORDER(AXESH1,NEWLINE1,ASSOCIATEDLINE1)
