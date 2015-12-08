@@ -164,11 +164,28 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                 cd(fullfile(dt.fqdns{d}, 'fsl', ''));
                 mlbash(sprintf('freeview oefnq_default_161616fwhh_on_t1_default_on_fsanatomical.mgz ../mri/aparc.a2009s+aseg.mgz'));
             end
-        end
+        end        
+        function [x,y,ids,sess] = plotOefratio2Dsa(terr)
+            this = mlanalysis.MoyamoyaPaper('Parameter', 'thickness', 'Territory', terr);
+            [oefratio,ids_,sess_] = this.cohortOefratio;
+            [dsa,ids,sess]        = this.cohortDsa;
+
+            oefratioSubject  = cellfun(@mean, oefratio)';
+            dsaSubject = cellfun(@mean, dsa)';
+            
+            inclusions = [ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ];
+            oefratioSubject  = oefratioSubject( inclusions == 1);
+            dsaSubject = dsaSubject(inclusions == 1);
+            
+            this.plot(oefratioSubject, dsaSubject, this.territory);
+            cftool(oefratioSubject, dsaSubject);
+            x = oefratioSubject;
+            y = dsaSubject;            
+        end    
         function [x,y,ids,sess] = plotOefratio2Thickness(terr)
             this = mlanalysis.MoyamoyaPaper('Parameter', 'thickness', 'Territory', terr);
-            oefratio             = this.cohortOefratio;
-            [thickness,ids,sess] = this.cohortThickness;
+            [oefratio,ids_,sess_] = this.cohortOefratio;
+            [thickness,ids,sess]  = this.cohortThickness;
 
             oefratioSubject  = cellfun(@mean, oefratio)';
             thicknessSubject = cellfun(@mean, thickness)';
