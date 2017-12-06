@@ -1,5 +1,6 @@
 classdef MoyamoyaPaper < mlsurfer.SurferData 
 	%% MOYAMOYAPAPER is under rapid prototyping  
+    %  Limit OEF Ratio to [0.7 1.5] to avoid artifacts.
 
 	%  $Revision$ 
  	%  was created $Date$ 
@@ -14,10 +15,108 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
         cerebellar_stats_filename = '/Volumes/SeagateBP4/cvl/np755/cerebellar_oefnq_statistics_2015oct12.mat'
         age_filename              = '/Volumes/SeagateBP4/cvl/np755/ageAtPresentation.mat'
         sex_filename              = '/Volumes/SeagateBP4/cvl/np755/subjectsSex.mat'
- 	end 
+        sessions                  = { ...
+            'mm01-001_p7663_2010jun23' ...
+            'mm01-005_p7270_2008jun18' ...
+            'mm01-006_p7260_2008jun9'  ...
+            'mm01-007_p7686_2010aug20' ...
+            'mm01-009_p7660_2010jun22' ...
+            'mm01-011_p7795_2011mar8'  ...
+            'mm01-012_p7414_2009apr27' ...
+            'mm01-018_p7507_2009oct21' ...
+            'mm01-019_p7510_2009oct26' ...
+            'mm01-020_p7377_2009feb5'  ...
+            'mm01-021_p7413_2009apr24' ...
+            'mm01-022_p7653_2010jun15' ...
+            'mm01-025_p7470_2009aug10' ...
+            'mm01-028_p7542_2009dec17' ...
+            'mm01-030_p7604_2010apr2'  ...
+            'mm01-031_p7610_2010apr7'  ...
+            'mm01-032_p7624_2010apr28' ...
+            'mm01-033_p7629_2010may5'  ...
+            'mm01-034_p7630_2010may5'  ...
+            'mm01-037_p7671_2010jul19' ...
+            'mm01-038_p7684_2010aug18' ...
+            'mm01-039_p7716_2010oct21' ...
+            'mm01-041_p7719_2010oct21' ...
+            'mm01-043_p7740_2010nov22' ...
+            'mm01-044_p7773_2011jan28' ...
+            'mm01-046_p7819_2011apr19' ...
+            'mm01-048_p7880_2011aug10' ...
+            'mm02-001_p7146_2008jan4'  ...
+            'mm03-001_p7229_2008apr28' ...
+            'mm06-005_p7766_2011jan14' } % defective alignments:  01-012, 01-025; fixed 2017nov19
+        exclusionLabel = 'Colin'
+        modelLabel = 'oefsubj'
+        theHemis = {'L' 'R'}
+        distrib = 'Normal'
+        link = 'identity'
+        diaryStats = ''
+    end 
+    
+    properties (Dependent)
+        exclusions
+        oefAltMat
+        oefMat
+        tdMat
+        tMat
+        cMat
+        inclusions
+        model
+    end
+    
+    methods % GET
+        function g = get.exclusions(this)
+            switch (this.exclusionLabel)
+                case 'Colin'
+                    g = { '' '' '' '' 'R' '' '' '' '' ''  'L' 'R' 'L' 'L' 'L' '' '' '' '' 'L' 'R' '' '' 'R' '' '' '' '' '' '' };
+                case 'orig'
+                    g = { '' '' '' '' 'R' '' '' '' '' ''  'L' 'R' 'L' 'L' 'L' '' '' '' '' 'L' '' '' '' 'R' '' '' '' '' '' '' };
+                case 'noexcl'
+                    g = { '' '' '' '' '' '' '' '' '' ''  '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' };
+                otherwise
+                    error('mlanalysis:unsupportedSwitchCase', ...
+                        'MoyamoyaPaper.get.exlucsions');
+            end
+        end
+        function g = get.oefAltMat(this)
+            g = sprintf('MoyamoyaPaper_histOefIndex_161616fwhh_oefVec_%s_%s_%s.mat', this.exclusionLabel, this.territory, this.statistic);
+        end
+        function g = get.oefMat(this)
+            g = sprintf('MoyamoyaPaper_histOefIndex_737363fwhh_oefVec_%s_%s_%s.mat', this.exclusionLabel, this.territory, this.statistic);
+        end
+        function g = get.tdMat(this)
+            g = sprintf('MoyamoyaPaper_histThicknessDiff_%s_%s_%s.mat', this.exclusionLabel, this.territory, this.statistic);
+        end
+        function g = get.tMat(this)
+            g = sprintf('MoyamoyaPaper_histThickness_%s_%s_%s.mat', this.exclusionLabel, this.territory, this.statistic);
+        end
+        function g = get.cMat(this)
+            g = sprintf('MoyamoyaPaper_categories_cVec_%s_%s_%s.mat', this.exclusionLabel, this.territory, this.statistic);
+        end
+        function g = get.inclusions(this)
+            g = cellfun(@(x) isempty(x), this.exclusions);
+        end
+        function g = get.model(this)
+            switch (this.modelLabel)
+                case 'fixed'
+                    g = 'thickd ~ 1 + age + oef';
+                case '1subj'
+                    g = 'thickd ~ 1 + age + oef + (1|subj)';
+                case 'oefsubj'
+                    g = 'thickd ~ 1 + age + oef + (1 + oef|subj)';
+                otherwise
+                    error('mlanalysis:unsupportedSwitchcase', 'MoyamoyaPaper.get.model');
+            end
+        end
+    end
 
 	methods (Static)
+        
         function visitIdSegstats(sessPth)
+            %% VISITIDSEGSTATS
+            %  @param session_path
+            %  @return results of mri_segstats:  oo_sumt_737353fwhh_on_T1.stats, ho_sumt_737353fwhh_on_T1
             import mlfourd.* mlanalysis.*;
             niiFilenames = {'oo_sumt_737353fwhh_on_T1' 'ho_sumt_737353fwhh_on_T1'};
             hemis        = {'lh' 'rh'};
@@ -53,7 +152,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                 otherwise
                     error('mlanalysis:unsupportedParamValue', 'MoyamoyaPaper.idsAparcA2009s.hemi->%s', hemi);
             end
-        end
+        end        
         
         function registerPET(sessPth)
             import mlanalysis.*;
@@ -161,10 +260,15 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             dt = mlsystem.DirTool('mm0*');
             assert(dt.length > 0);
             for d = 1:dt.length
-                cd(fullfile(dt.fqdns{d}, 'fsl', ''));
-                mlbash(sprintf('freeview oefnq_default_161616fwhh_on_t1_default_on_fsanatomical.mgz ../mri/aparc.a2009s+aseg.mgz'));
+                try
+                    pwd0 = pushd(fullfile(dt.fqdns{d}, 'fsl', ''));
+                    mlbash(sprintf('freeview oefnq_default_161616fwhh_on_t1_default_on_fsanatomical.mgz ../mri/aparc.a2009s+aseg.mgz'));
+                    popd(pwd0);
+                catch ME
+                    handwarning(ME);
+                end
             end
-        end        
+        end       
         function [x,y,ids,sess] = plotOefratio2Dsa(terr)
             this = mlanalysis.MoyamoyaPaper('Parameter', 'thickness', 'Territory', terr);
             [oefratio,ids_,sess_] = this.cohortOefratio;
@@ -190,16 +294,15 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             oefratioSubject  = cellfun(@mean, oefratio)';
             thicknessSubject = cellfun(@mean, thickness)';
             
-            inclusions = [ 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 ];
-            oefratioSubject  = oefratioSubject( inclusions == 1);
-            thicknessSubject = thicknessSubject(inclusions == 1);
+            oefratioSubject  = oefratioSubject( this.inclusions == 1);
+            thicknessSubject = thicknessSubject(this.inclusions == 1);
             
             this.plot(oefratioSubject, thicknessSubject, this.territory);
-            cftool(oefratioSubject, thicknessSubject);
+            %cftool(oefratioSubject, thicknessSubject);
             x = oefratioSubject;
             y = thicknessSubject;            
         end        
-        function [x,y] = plotAge2Thickness(terr)       
+        function [x,y] = plotAge2Thickness(terr) 
             this = mlanalysis.MoyamoyaPaper('Parameter', 'thickness', 'Territory', terr);
             th = this.cohortThickness;            
             thSubject = cellfun(@mean, th)';            
@@ -260,8 +363,26 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
     methods
         function this = MoyamoyaPaper(varargin)
             this = this@mlsurfer.SurferData(varargin{:});
+            mlsurfer.SurferRegistry.instance('initialize');
+            
+            ip = inputParser;
+            ip.KeepUnmatched = true;
+            addParameter(ip, 'exclusionLabel', this.exclusionLabel, @ischar);
+            addParameter(ip, 'modelLabel', this.modelLabel, @ischar);
+            parse(ip, varargin{:});
+            
+            this.exclusionLabel = ip.Results.exclusionLabel;
+            this.modelLabel = ip.Results.modelLabel;
         end
-        function plot(~, X1, Y1, terr)
+        
+        function plot(~, X1, Y1, varargin)
+            
+            ip = inputParser;
+            addRequired(ip, 'X1', @isnumeric);
+            addRequired(ip, 'Y1', @isnumeric);
+            addOptional(ip, 'terr', 'ACA + MCA', @ischar);
+            parse(ip, X1, Y1, varargin{:});
+            
             %% PLOT(X1, Y1, territory)
             %  X1:  vector of x data
             %  Y1:  vector of y data
@@ -277,16 +398,16 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             hold(axes1,'on');
 
             % Create plot
-            plot(X1,Y1,'MarkerSize',10,'Marker','o','LineStyle','none');
+            plot(X1,Y1,'MarkerSize',8,'Marker','.','LineStyle','none');
 
             % Create xlabel
-            xlabel(sprintf('OEF(%s) / OEF(cerebellum)', upper(terr)),'FontSize',15.4);
+            xlabel(sprintf('OEF Ratio (%s)', ip.Results.terr),'FontSize',16);
 
             % Create ylabel
-            ylabel('thickness / mm','FontSize',15.4);
+            ylabel('Thickness (mm)','FontSize',16);
 
             % Create title
-            title(sprintf('30 patients, %s territory', upper(terr)), 'FontSize',15.4);
+            %title(sprintf('30 patients, %s territory', ip.Results.terr), 'FontSize',16);
         end        
         function plotLinRegress(this, X1, Y1, terr)
             %CREATEFIGURE(X1, Y1)
@@ -389,6 +510,880 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             % "Show equations" was selected
             this.showEquations(fittypesArray1, coeffs1, 3, axes1);
         end
+        function scatter(~, X1, Y1, varargin)
+            
+            ip = inputParser;
+            addRequired(ip, 'X1', @isnumeric);
+            addRequired(ip, 'Y1', @isnumeric);
+            addParameter(ip, 'terr', '', @ischar);
+            addParameter(ip, 'category', []);
+            addParameter(ip, 'response', 'Thickness (mm)');
+            parse(ip, X1, Y1, varargin{:});
+            
+            %% PLOT(X1, Y1, territory)
+            %  X1:  vector of x data
+            %  Y1:  vector of y data
+
+            %  Auto-generated by MATLAB on 13-Oct-2015 15:45:41
+
+            % Create figure
+            figure1 = figure;
+
+            % Create axes
+            axes1 = axes('Parent',figure1,'FontSize',14);
+            box(axes1,'on');
+            hold(axes1,'on');
+
+            % Create plot
+            if (~isempty(ip.Results.category))
+                scatter(X1,Y1,8,ip.Results.category, 'filled');
+                colorbar; %('TickLabels', {'3' '6' '9' '12' '15' '18' '21' '24' '27' '30'});
+            else
+                plot(X1,Y1,'MarkerSize',8,'Marker','.','LineStyle','none');
+            end
+
+            % Create xlabel
+            xlabel('OEF Ratio','FontSize',16,'FontWeight','bold');
+
+            % Create ylabel
+            ylabel(ip.Results.response,'FontSize',16,'FontWeight','bold');
+
+            % Create title
+            %title(sprintf('30 patients, %s territory', ip.Results.terr), 'FontSize',16);
+        end    
+        function scatter2(~, X1, Y1, varargin)
+            
+            ip = inputParser;
+            addRequired(ip, 'X1', @isnumeric);
+            addRequired(ip, 'Y1', @isnumeric);
+            addParameter(ip, 'terr', '', @ischar);
+            addParameter(ip, 'category', []);
+            addParameter(ip, 'response', 'Thickness (mm)');
+            addParameter(ip, 'size', 200, @isnumeric);
+            parse(ip, X1, Y1, varargin{:});
+            
+            %% PLOT(X1, Y1, territory)
+            %  X1:  vector of x data
+            %  Y1:  vector of y data
+
+            %  Auto-generated by MATLAB on 13-Oct-2015 15:45:41
+
+            % Create figure
+            figure1 = figure;
+
+            % Create axes
+            axes1 = axes('Parent',figure1,'FontSize',14);
+            box(axes1,'on');
+            hold(axes1,'on');
+
+            % Create plot
+            if (~isempty(ip.Results.category))
+                scatter(X1,Y1,ip.Results.size,ip.Results.category);
+                colorbar; %('TickLabels', {'3' '6' '9' '12' '15' '18' '21' '24' '27' '30'});
+            else
+                plot(X1,Y1,'MarkerSize',8,'Marker','.','LineStyle','none');
+            end
+
+            % Create xlabel
+            xlabel('OEF Ratio', 'FontSize',16,'FontWeight','bold');
+
+            % Create ylabel
+            ylabel(ip.Results.response,'FontSize',16,'FontWeight','bold');
+
+            % Create title
+            %title(sprintf('30 patients, %s territory', ip.Results.terr), 'FontSize',16);
+        end    
+        
+        function [cVec,cStr] = categories(this, varargin)
+            ip = inputParser;
+            addOptional(ip, 'kind', '', @ischar);
+            parse(ip, varargin{:});
+            
+            switch (ip.Results.kind)
+                case 'territory'                     
+                    [cVec,cStr] = this.categorizeByTerritory;
+                otherwise
+                    [cVec,cStr] = this.categorizeBySessions;
+            end
+        end
+        function [cVec,cStr] = categorizeByTerritory(this)
+            % @return cVec has circulatory territories (ACA, MCA, PCA) with sessions & hemispheres within
+            
+            pwd0 = pushd(this.subjectsDir);
+            cVec = [];
+            terrs = {'aca' 'mca' 'pca'};
+            for t = 1:length(terrs)
+                for s = 1:length(this.sessions)
+
+                    s2IC = mlsurfer.Stats2ImagingContext( ...
+                        'sessionPath', fullfile(this.subjectsDir, this.sessions{s}), ...
+                        'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
+                        'territory', terrs{t}, ...
+                        'statistic', this.statistic);
+                    cStr(s) = s2IC.category; %#ok<AGROW>
+
+                    len = max(length(cStr(s).ids{1}), length(cStr(s).ids{2}));                
+                    for h = 1:2
+                        if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                            ids_ = cStr(s).ids{h};
+                            for iparc = 1:len
+                                if (cStr(s).map.isKey(ids_(iparc)))
+                                    cVec = [cVec t]; %#ok<AGROW>
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            this.territory = 'aca_mca_pca';
+            save(this.cMat, 'c*');
+            popd(pwd0);
+        end
+        function [cVec,cStr] = categorizeBySessions(this)
+            % cVec has sessions with hemispheres within
+            
+            pwd0 = pushd(this.subjectsDir);
+            cVec = [];
+            for s = 1:length(this.sessions)
+                
+                s2IC = mlsurfer.Stats2ImagingContext( ...
+                    'sessionPath', fullfile(this.subjectsDir, this.sessions{s}), ...
+                    'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
+                    'territory', this.territory, ...
+                    'statistic', this.statistic);
+                cStr(s) = s2IC.category; %#ok<AGROW>
+                
+                len = max(length(cStr(s).ids{1}), length(cStr(s).ids{2}));                
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        ids_ = cStr(s).ids{h};
+                        for iparc = 1:len
+                            if (cStr(s).map.isKey(ids_(iparc)))
+                                cVec = [cVec s]; %#ok<AGROW>
+                            end
+                        end
+                    end
+                end
+            end
+            save(this.cMat, 'c*');
+            popd(pwd0);
+        end
+        
+        function [oefVec,oefStr,h1] = histOefIndex(this, varargin)
+            % oefVec has sessions with hemispheres within
+            
+            pwd0 = pushd(this.subjectsDir);
+            oefVec = [];
+            if (~isempty(this.diaryStats))
+                diary([this.diaryStats 'histOefIndex']);
+            end
+            stats = cell(length(this.sessions), 2);
+            for s = 1:length(this.sessions)
+                
+                s2IC = mlsurfer.Stats2ImagingContext( ...
+                    'sessionPath', fullfile(this.subjectsDir, this.sessions{s}), ...
+                    'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
+                    'territory', this.territory, ...
+                    'statistic', this.statistic);                
+                oefStr(s) = s2IC.oefIndex(varargin{:});  %#ok<AGROW>
+                
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        ids_ = oefStr(s).ids{h};
+                        parcVec = [];
+                        for iparc = 1:length(ids_)
+                            if (oefStr(s).map.isKey(ids_(iparc)))
+                                parcVec = [parcVec oefStr(s).map(ids_(iparc))]; %#ok<AGROW>
+                            end
+                        end
+                        oefVec = [oefVec parcVec]; %#ok<AGROW>
+                    end
+                    stats{s,h} = struct('mean',mean(parcVec), 'std', std(parcVec), 'max', max(parcVec));
+                    this.statsPrintf(stats{s,h}, s, h);
+                end
+            end
+            save(this.oefMat);
+            h1 = histogram(oefVec);
+            h1.Normalization = 'probability';
+            h1.BinWidth = 0.01;
+            popd(pwd0);
+            diary off
+        end
+        function [tdVec,tdStr] = histThicknessDiff(this)
+            % tdVec has sessions with hemispheres within
+            
+            pwd0 = pushd(this.subjectsDir);
+            tdVec = [];
+            for s = 1:length(this.sessions)            
+                
+                s2IC = mlsurfer.Stats2ImagingContext( ...
+                    'sessionPath', fullfile(this.subjectsDir, this.sessions{s}), ...
+                    'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
+                    'territory', this.territory, ...
+                    'statistic', this.statistic);
+                tdStr(s) = s2IC.thicknessDiff; %#ok<AGROW>
+                
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        ids_ = tdStr(s).ids{h};
+                        for iparc = 1:length(ids_)
+                            if (tdStr(s).map.isKey(ids_(iparc)))
+                                tdVec = [tdVec tdStr(s).map(ids_(iparc))]; %#ok<AGROW>
+                            end
+                        end
+                    end
+                end
+            end            
+            save(this.tdMat, 'td*');
+            histogram(tdVec);
+            popd(pwd0);
+        end
+        function [tVec,tStr] = histThickness(this)
+            % tdVec has sessions with hemispheres within
+            
+            pwd0 = pushd(this.subjectsDir);
+            tVec = [];
+            if (~isempty(this.diaryStats))
+                diary([this.diaryStats 'histThickness']);
+            end
+            stats = cell(length(this.sessions), 2);
+            for s = 1:length(this.sessions)            
+                
+                s2IC = mlsurfer.Stats2ImagingContext( ...
+                    'sessionPath', fullfile(this.subjectsDir, this.sessions{s}), ...
+                    'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
+                    'territory', this.territory, ...
+                    'statistic', this.statistic);
+                tStr(s) = s2IC.thickness; %#ok<AGROW>
+                
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        ids_ = tStr(s).ids{h};
+                        parcVec = [];
+                        for iparc = 1:length(ids_)
+                            if (tStr(s).map.isKey(ids_(iparc)))
+                                parcVec = [parcVec tStr(s).map(ids_(iparc))]; %#ok<AGROW>
+                            end
+                        end
+                        tVec = [tVec parcVec]; %#ok<AGROW>
+                    end
+                    stats{s,h} = struct('mean', mean(parcVec), 'std', std(parcVec));
+                    this.statsPrintf(stats{s,h}, s, h);
+                end
+            end            
+            save(this.tMat);
+            histogram(tVec);
+            popd(pwd0);
+            diary off
+        end
+        function histThicknessIndex(this)
+            pwd0 = pushd(this.subjectsDir);
+            tiVec = [];
+            for s = 1:length(this.sessions)
+                if (isempty(this.exclusions{s}))              
+
+                    s2IC = mlsurfer.Stats2ImagingContext( ...
+                        'sessionPath', fullfile(this.subjectsDir, this.sessions{s}), ...
+                        'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
+                        'territory', this.territory, ...
+                        'statistic', this.statistic);
+                    pStr = s2IC.thicknessIndex;
+                    
+                    for lft = 1:length(pStr.ids{1})
+                        if (pStr.map.isKey(pStr.ids{1}(lft)))
+                            tiVec = [tiVec pStr.map(pStr.ids{1}(lft))]; %#ok<AGROW>
+                        end
+                    end
+                    for rgt = 1:length(pStr.ids{2})
+                        if (pStr.map.isKey(pStr.ids{2}(rgt)))
+                            tiVec = [tiVec pStr.map(pStr.ids{2}(rgt))]; %#ok<AGROW>
+                        end
+                    end
+                end
+            end            
+            save(sprintf('MoyamoyaPaper_histThicknessIndex_%s.mat', datestr(now,30)), 'tiVec');
+            histogram(tiVec);
+            popd(pwd0);
+        end
+        function histParam(this, param)
+            assert(ischar(param));
+            pwd0 = pushd(this.subjectsDir);
+            pVec = [];
+            for s = 1:length(this.sessions)
+                if (isempty(this.exclusions{s}))              
+
+                    s2IC = mlsurfer.Stats2ImagingContext( ...
+                        'sessionPath', fullfile(this.subjectsDir, this.sessions{s}), ...
+                        'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
+                        'territory', this.territory, ...
+                        'statistic', this.statistic);
+                    pStr = s2IC.aParameter(param);
+                    
+                    for lft = 1:length(pStr.ids{1})
+                        if (pStr.map.isKey(pStr.ids{1}(lft)))
+                            pVec = [pVec pStr.map(pStr.ids{1}(lft))]; %#ok<AGROW>
+                        end
+                    end
+                    for rgt = 1:length(pStr.ids{2})
+                        if (pStr.map.isKey(pStr.ids{2}(rgt)))
+                            pVec = [pVec pStr.map(pStr.ids{2}(rgt))]; %#ok<AGROW>
+                        end
+                    end
+                end
+            end            
+            save(sprintf('MoyamoyaPaper_histParam_%s_%s.mat', param, datestr(now,30)), 'pVec', 'pStr');
+            histogram(pVec);
+            popd(pwd0);
+        end
+        
+        function fitglmeOefIndex2Thickness(this)
+            % plot freesurfer regions ~3036
+            
+            diaryFile = sprintf('fitglmeOefIndex2Thickness_glme_%s_%s_%s.log', ...
+                this.territory, this.exclusionLabel, this.modelLabel);
+            deleteExisting(diaryFile);
+            
+            load(this.oefMat, 'oefStr', 'oefVec');
+            load(this.tMat, 'tStr', 'tVec');
+            if (lexist(this.cMat, 'file'))
+                load(this.cMat, 'cStr', 'cVec');
+            else
+                cVec = this.categories;
+            end
+            load(this.age_filename, 'ageAtPresentation');
+            load(this.sex_filename, 'subjectsSex');
+            subjectsSex = double(strcmp('Male', subjectsSex));            
+            age = [];
+            sex = [];
+            for s = 1:length(this.sessions)   
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        age = [age repelem(ageAtPresentation(s), length(oefStr(s).map.keys))];
+                        sex = [sex repelem(subjectsSex(s),       length(oefStr(s).map.keys))];
+                    end
+                end
+            end
+            
+            rng     = 0.7 < oefVec & oefVec ~= 1 & oefVec < 1.5;
+            fprintf('fitglmeOefIndex2ThicknessDiff:  discarding %g regions\n', length(oefVec) - sum(rng)); 
+            fprintf('fitglmeOefIndex2ThicknessDiff:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); 
+            oefVec2 = oefVec(rng)';
+            tVec2   = tVec(rng)';
+            cVec2   = cVec(rng)';
+            age     = age(rng)'; 
+            sex     = sex(rng)';
+            assert(length(oefVec2) == length(tVec2));
+            assert(length(tVec2)   == length(cVec2));
+            assert(length(cVec2)   == length(age));
+            assert(length(age)     == length(sex));
+            this.scatter(oefVec2, tVec2, 'category', cVec2, 'response', 'Thickness (mm)');  
+            this.scatter(oefVec2, age,   'category', cVec2, 'response', 'Age (years)');  
+            this.scatter(oefVec2, sex,   'category', cVec2, 'response', 'Sex');    
+            tbl     = table(oefVec2, age, sex, num2str(cVec2), tVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            summary(tbl)
+            glme    = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)
+            %'thickd ~ 1 + age + sex + oef + (1 + oef|subj)'
+            [psi,dispersion,statsCP] = covarianceParameters(glme);
+            for s = 1:length(psi)
+                disp(psi{s})
+            end
+            disp(dispersion);
+            for s = 1:length(statsCP)
+                disp(statsCP{s})
+            end
+            [~,~,statsFE] = fixedEffects(glme)
+            [~,~,statsRE] = randomEffects(glme)
+            figure;
+            plotResiduals(glme, 'fitted', 'ResidualType', 'Pearson')
+            save(sprintf('fitglmeOefIndex2Thickness_glme_%s_%s_%s.mat', ...
+                this.territory, this.exclusionLabel, this.modelLabel)); 
+            diary off
+        end 
+        function fitglmeOefIndex2Thickness2(this)
+            % plot hemispheres ~51
+            
+            diaryFile = sprintf('fitglmeOefIndex2Thickness2_glme2_%s_%s_%s.log', ...
+                this.territory, this.exclusionLabel, this.modelLabel);
+            deleteExisting(diaryFile);
+            diary(diaryFile); 
+            
+            load(this.oefMat, 'oefStr', 'oefVec');
+            load(this.tMat, 'tStr', 'tVec');
+            load(this.age_filename, 'ageAtPresentation');
+            load(this.sex_filename, 'subjectsSex');
+            subjectsSex = double(strcmp('Male', subjectsSex));
+            age = [];
+            sex = [];
+            for s = 1:length(this.sessions)   
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        age = [age ageAtPresentation(s)];
+                        sex = [sex subjectsSex(s)];
+                    end
+                end
+            end
+            
+            oefVec2 = [];
+            tVec2   = [];
+            cVec2   = [];
+            oefVec_ = {[] []};
+            tVec_   = {[] []};
+            for s = 1:length(this.sessions)
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        oefVec2 = [oefVec2 oefStr(s).mapsHemis{h}];
+                          tVec2 = [  tVec2   tStr(s).mapsHemis{h}];
+                          cVec2 = [  cVec2        s];
+                    end
+                    oefVec_{h} = [oefVec_{h} oefStr(s).mapsHemis{h}];
+                      tVec_{h} =   [tVec_{h}   tStr(s).mapsHemis{h}];
+                end
+            end
+            writetable(table(this.sessions', tVec_{1}', oefVec_{1}', tVec_{2}', oefVec_{2}'), ...
+                sprintf('fitglmeOefIndex2Thickness2_%s_%s.xlsx', this.territory, this.exclusionLabel));
+            
+            rng     = 0.7 < oefVec2 & oefVec2 < 1.6;
+            %fprintf('fitglmeOefIndex2Thickness2:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
+            %fprintf('fitglmeOefIndex2Thickness2:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
+            oefVec2 = oefVec2(rng)';
+            tVec2   = tVec2(rng)';
+            cVec2   = cVec2(rng)';
+            age     = age(rng)';
+            sex     = sex(rng)';
+            assert(length(oefVec2) == length(tVec2));
+            assert(length(tVec2)   == length(cVec2));
+            assert(length(cVec2)   == length(age));
+            assert(length(age)     == length(sex));
+            this.scatter2(oefVec2, tVec2, 'category', cVec2, 'size', 200, 'response', 'Thickness (mm)'); 
+            this.scatter2(oefVec2, age,   'category', cVec2, 'size', 200, 'response', 'Age (years)');  
+            this.scatter2(oefVec2, sex,   'category', cVec2, 'size', 200, 'response', 'Sex');    
+            tbl     = table(oefVec2, age, sex, cVec2, tVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            summary(tbl)            
+            glme2   = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)            
+            [psi,dispersion,statsCP] = covarianceParameters(glme2);
+            for s = 1:length(psi)
+                disp(psi{s})
+            end
+            disp(dispersion);
+            for s = 1:length(statsCP)
+                disp(statsCP{s})
+            end
+            [~,~,statsFE] = fixedEffects(glme2)
+            [~,~,statsRE] = randomEffects(glme2)
+            %figure;
+            %plotResiduals(glme2, 'fitted', 'ResidualType', 'Pearson')
+            save(sprintf('fitglmeOefIndex2Thickness2_glme2_%s_%s_%s.mat', ...
+                this.territory, this.exclusionLabel, this.modelLabel)); 
+            diary off
+        end   
+        function fitglmeOefIndex2Thickness3(this)
+            % plot patients ~30
+            
+            diaryFile = sprintf('fitglmeOefIndex2Thickness3_glme3_%s_%s_%s.log', ...
+                this.territory, this.exclusionLabel, this.modelLabel);
+            deleteExisting(diaryFile);
+            diary(diaryFile); 
+            
+            load(this.oefMat, 'oefStr', 'oefVec');
+            load(this.tMat, 'tStr', 'tVec');
+            load(this.age_filename, 'ageAtPresentation');
+            load(this.sex_filename, 'subjectsSex');
+            subjectsSex = double(strcmp('Male', subjectsSex));
+            age = [];
+            sex = [];
+            for s = 1:length(this.sessions)   
+                age = [age ageAtPresentation(s)];
+                sex = [sex subjectsSex(s)];
+            end
+            
+            oefVec2 = [];
+            tVec2   = [];
+            cVec2   = [];
+            for s = 1:length(this.sessions)
+                oefVecH = [];
+                tVecH   = [];
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        oefVecH = [oefVecH oefStr(s).mapsHemis{h}];
+                        tVecH   = [  tVecH   tStr(s).mapsHemis{h}];
+                    end
+                end
+                oefVec2 = [oefVec2 mean(oefVecH)];
+                tVec2   = [  tVec2 mean(  tVecH)];
+                cVec2   = [  cVec2             s];
+            end
+            writetable(table(this.sessions', tVec2', oefVec2'), ...
+                sprintf('fitglmeOefIndex2Thickness3_%s_%s.xlsx', this.territory, this.exclusionLabel));
+            
+            %rng     = 0.7 < oefVec2 & oefVec2 < 1.6;
+            %fprintf('fitglmeOefIndex2Thickness3:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
+            %fprintf('fitglmeOefIndex2Thickness3:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
+            oefVec2 = oefVec2';
+            tVec2   = tVec2';
+            cVec2   = cVec2';
+            age     = age';
+            sex     = sex';
+            assert(length(oefVec2) == length(tVec2));
+            assert(length(tVec2)   == length(cVec2));
+            assert(length(cVec2)   == length(age));
+            assert(length(age)     == length(sex));
+            this.scatter2(oefVec2, tVec2, 'category', cVec2, 'size', 200, 'response', 'Thickness (mm)'); 
+            this.scatter2(oefVec2, age,   'category', cVec2, 'size', 200, 'response', 'Age (years)');  
+            this.scatter2(oefVec2, sex,   'category', cVec2, 'size', 200, 'response', 'Sex'); 
+            tbl     = table(oefVec2, age, sex, cVec2, tVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            summary(tbl)            
+            glme2   = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)            
+            [psi,dispersion,statsCP] = covarianceParameters(glme2);
+            for s = 1:length(psi)
+                disp(psi{s})
+            end
+            disp(dispersion);
+            for s = 1:length(statsCP)
+                disp(statsCP{s})
+            end
+            [~,~,statsFE] = fixedEffects(glme2)
+            [~,~,statsRE] = randomEffects(glme2)
+            %figure;
+            %plotResiduals(glme2, 'fitted', 'ResidualType', 'Pearson')
+            save(sprintf('fitglmeOefIndex2Thickness3_glme3_%s_%s_%s.mat', ...
+                this.territory, this.exclusionLabel, this.modelLabel)); 
+            diary off
+        end   
+        function fitglmOefIndex2Thickness2(this)
+            % plot hemispheres ~51
+            
+            diary(sprintf('fitglmOefIndex2Thickness2_glm2_%s_%s_%s.log', ...
+                this.territory, this.exclusionLabel, this.modelLabel)); 
+            
+            load(this.oefMat, 'oefStr', 'oefVec');
+            load(this.tMat, 'tStr', 'tVec');
+            load(this.age_filename, 'ageAtPresentation');
+            load(this.sex_filename, 'subjectsSex');
+            subjectsSex = double(strcmp('Male', subjectsSex));
+            age = [];
+            sex = [];
+            for s = 1:length(this.sessions)   
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        age = [age repelem(ageAtPresentation(s), 2)];
+                        sex = [sex repelem(subjectsSex(s),       2)];
+                    end
+                end
+            end
+            
+            oefVec2 = [];
+            tVec2   = [];
+            cVec2   = [];
+            oefVec_ = {[] []};
+            tVec_   = {[] []};
+            for s = 1:length(this.sessions)
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        oefVec2 = [oefVec2 oefStr(s).mapsHemis{h}];
+                        tVec2   = [  tVec2   tStr(s).mapsHemis{h}];
+                        cVec2   = [  cVec2        s];
+                    end
+                    oefVec_{h} = [oefVec_{h} oefStr(s).mapsHemis{h}];
+                    tVec_{h}  = [tVec_{h}    tStr(s).mapsHemis{h}];
+                end
+            end
+            writetable(table(this.sessions', tVec_{1}', oefVec_{1}', tVec_{2}', oefVec_{2}'), ...
+                sprintf('fitglmeOefIndex2Thickness2_%s_%s.xlsx', this.territory, this.exclusionLabel));
+            
+            rng     = 0.7 < oefVec2 & oefVec2 < 1.6;
+            fprintf('fitglmeOefIndex2ThicknessDiff2:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
+            fprintf('fitglmeOefIndex2ThicknessDiff2:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
+            oefVec2 = oefVec2(rng)';
+            tVec2   = tVec2(rng)';
+            cVec2   = cVec2(rng)';
+            age     = age(rng)';
+            sex     = sex(rng)';
+            assert(length(oefVec2) == length(tVec2));
+            assert(length(tVec2)   == length(cVec2));
+            assert(length(cVec2)   == length(age));
+            assert(length(age)     == length(sex));
+            this.scatter2(oefVec2, tVec2, 'category', cVec2, 'size', 200);  
+            this.scatter2(age,     tVec2, 'category', cVec2, 'size', 200);  
+            %tbl     = table(oefVec2, age, sex, tVec2);
+            %tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'thickd'};
+            tbl     = table(oefVec2, age, tVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'thickd'};
+            summary(tbl)            
+            glm2    = fitglm(tbl, 'linear')            
+            coefCI(glm2)
+            %plotDiagnostics(glm2, 'leverage')
+            
+            
+            save(sprintf('fitglmOefIndex2Thickness2_glm2_%s_%s_%s.mat', ...
+                this.territory, this.exclusionLabel, this.modelLabel)); 
+            diary off
+        end   
+        function fitglmeOefIndex2ThicknessDiff(this)
+            % plot freesurfer regions ~2958
+            load(this.oefMat, 'oef*');
+            load(this.tdMat, 't*');
+            if (lexist(this.cMat, 'file'))
+                load(this.cMat, 'c*');
+            else
+                cVec = this.categories;
+            end
+            load(this.age_filename, 'ageAtPresentation');
+            load(this.sex_filename, 'subjectsSex');
+            subjectsSex = double(strcmp('Male', subjectsSex));            
+            age = [];
+            sex = [];
+            for s = 1:length(this.sessions)   
+                for h = 1:2            
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        age = [age repelem(ageAtPresentation(s), length(oefStr(s).map.keys))];
+                        sex = [sex repelem(subjectsSex(s),       length(oefStr(s).map.keys))];
+                    end
+                end
+            end
+            
+            rng    = 0.5 < oefVec & oefVec ~= 1 & oefVec < 1.5;
+            fprintf('fitglmeOefIndex2ThicknessDiff:  discarding %g regions\n', length(oefVec) - sum(rng)); % 13
+            fprintf('fitglmeOefIndex2ThicknessDiff:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); % 0.00431034
+            oefVec2 = oefVec(rng)';
+            tdVec2  = tdVec(rng)';
+            cVec2   = cVec(rng)';
+            age     = age(rng)'; 
+            sex     = sex(rng)';
+            assert(length(oefVec2) == length(tdVec2));
+            assert(length(tdVec2)  == length(cVec2));
+            assert(length(cVec2)   == length(age));
+            assert(length(age)     == length(sex));
+            this.scatter(oefVec2, tdVec2, 'category', cVec2);    
+            tbl     = table(oefVec2, age, sex, cVec2, tdVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            summary(tbl)
+            glme    = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)
+            [psi,dispersion,statsCP] = covarianceParameters(glme)
+            [~,~,statsFE] = fixedEffects(glme)
+            [~,~,statsRE] = randomEffects(glme)
+            figure;
+            plotResiduals(glme, 'fitted', 'ResidualType', 'Pearson')
+            save(sprintf('fitglmeOefIndex2ThicknessDiff_glme_%s_%s.mat', this.territory, this.exclusionLabel));         
+        end   
+        function fitglmeOefIndex2ThicknessDiff2(this)
+            % plot hemispheres ~51
+            
+            load(this.oefMat, 'oef*');
+            load(this.tdMat, 't*');
+            load(this.age_filename, 'ageAtPresentation');
+            load(this.sex_filename, 'subjectsSex');
+            subjectsSex = double(strcmp('Male', subjectsSex));
+            age = [];
+            sex = [];
+            for s = 1:length(this.sessions)   
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        age = [age repelem(ageAtPresentation(s), 2)];
+                        sex = [sex repelem(subjectsSex(s),       2)];
+                    end
+                end
+            end
+            
+            oefVec2 = [];
+            tdVec2  = [];
+            cVec2   = [];
+            oefVec_ = {[] []};
+            tdVec_   = {[] []};
+            for s = 1:length(this.sessions)
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        oefVec2 = [oefVec2 oefStr(s).mapsHemis{h}];
+                        tdVec2  = [ tdVec2  tdStr(s).mapsHemis{h}];
+                        cVec2   = [  cVec2        s];
+                    end
+                    oefVec_{h} = [oefVec_{h} oefStr(s).mapsHemis{h}];
+                    tdVec_{h}  = [tdVec_{h}    tStr(s).mapsHemis{h}];
+                end
+            end
+            
+            writetable(table(this.sessions', tdVec_{1}', oefVec_{1}', tdVec_{2}', oefVec_{2}'), 'plotOefIndex2ThicknessAlt2.xlsx');
+            
+            rng    = 0.7 < oefVec2 & oefVec2 < 1.6;
+            fprintf('fitglmeOefIndex2ThicknessDiff2:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
+            fprintf('fitglmeOefIndex2ThicknessDiff2:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
+            oefVec2 = oefVec2(rng)';
+            tdVec2  = tdVec2(rng)';
+            cVec2   = cVec2(rng)';
+            age     = age(rng)';
+            sex     = sex(rng)';
+            assert(length(oefVec2) == length(tdVec2));
+            assert(length(tdVec2)  == length(cVec2));
+            assert(length(cVec2)   == length(age));
+            assert(length(age)     == length(sex));
+            this.scatter2(oefVec2, tdVec2, 'category', cVec2, 'size', 200);  
+            tbl     = table(oefVec2, age, sex, cVec2, tdVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            summary(tbl)
+            mdl     = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)
+            save(sprintf('fitglmeOefIndex2Thickness2_glme_%s_%s.mat', this.territory, this.exclusionLabel)); 
+        end   
+        function fitglmeOefIndex2ThicknessDiff3(this)
+            % plot patients ~30
+            
+            load(this.oefMat, 'oef*');
+            load(this.tdMat, 't*');
+            load(this.age_filename, 'ageAtPresentation');
+            load(this.sex_filename, 'subjectsSex');
+            subjectsSex = double(strcmp('Male', subjectsSex));
+            age2 = ageAtPresentation';
+            sex2 = subjectsSex';
+            
+            oefVec2 = [];
+            tdVec2  = [];
+            cVec2   = [];
+            for s = 1:length(this.sessions)
+                meanOef = [];
+                meanTd  = [];
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        meanOef = [meanOef oefStr(s).mapsHemis{h}];
+                        meanTd  = [meanTd   tdStr(s).mapsHemis{h}];                        
+                    end
+                end
+                oefVec2 = [oefVec2 mean(meanOef)];
+                tdVec2  = [tdVec2  mean(meanTd)];
+                cVec2   = [cVec2   s];
+            end
+            rng = 0.7 < oefVec2 & oefVec2 < 1.6;
+            fprintf('fitglmeOefIndex2ThicknessDiff3:  discarding %g patients\n', length(oefVec2) - sum(rng)); % 1
+            fprintf('fitglmeOefIndex2ThicknessDiff3:  discarding fraction %g of patients\n', 1-sum(rng)/length(oefVec2)); % 0.033333
+            oefVec2 = oefVec2(rng)';
+            tdVec2  = tdVec2(rng)';
+            cVec2   = cVec2(rng)';
+            age2    = age2(rng)'; 
+            sex2    = sex2(rng)';
+            this.scatter2(oefVec2, tdVec2, 'category', cVec2, 'size', 400);  
+            tbl     = table(oefVec2, age2, sex2, cVec2, tdVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            summary(tbl)
+            mdl     = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)
+            save(sprintf('fitglmeOefIndex2Thickness3_glme_%s_%s.mat', this.territory, this.exclusionLabel)); 
+        end 
+        
+        function plotOefIndex2ThicknessDiff(this)
+            % plot freesurfer regions ~2958
+            load(this.oefMat, 'oef*');
+            load(this.tdMat, 'td*');
+            if (lexist(this.cMat, 'file'))
+                load(this.cMat, 'c*');
+            else
+                cVec = this.categories;
+            end
+            rng = oefVec < 1.6;
+            fprintf('plotOefIndex2ThicknessDiff:  discarding %g regions\n', length(oefVec) - sum(rng)); % 8
+            fprintf('plotOefIndex2ThicknessDiff:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); % 0.00270453
+            x = oefVec(outliers);
+            y = tdVec(outliers);
+            this.scatter(oefVec(rng), tdVec(rng), 'category', cVec(rng)); 
+            mdl = fitlm(x, y)         
+        end    
+        function plotOefIndex2ThicknessDiff_territory(this)
+            % plot freesurfer regions ~2958, color by territory
+            load(this.oefMat, 'oef*');
+            load(this.tdMat, 'td*');
+            this.territory = 'aca_mca_pca';
+            if (lexist(this.cMat, 'file'))
+                load(this.cMat, 'c*');
+            else
+                cVec = this.categories('territory');
+            end
+            rng = oefVec < 1.6;
+            fprintf('plotOefIndex2ThicknessDiff:  discarding %g regions\n', length(oefVec) - sum(rng)); % 8
+            fprintf('plotOefIndex2ThicknessDiff:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); % 0.00270453
+            this.scatter(oefVec(rng), tdVec(rng), 'category', cVec(rng));      
+        end     
+        function plotOefIndex2ThicknessDiff2(this)
+            % plot hemispheres ~51
+            
+            load(this.oefMat, 'oef*');
+            load(this.tdMat, 'td*');
+            load(this.age_filename, 'ageAtPresentation');
+            load(this.sex_filename, 'subjectsSex');
+            
+            oefVec2 = [];
+            tdVec2  = [];
+            cVec2   = [];
+            for s = 1:length(this.sessions)
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        oefVec2 = [oefVec2 oefStr(s).mapsHemis{h} ];
+                        tdVec2  = [ tdVec2  tdStr(s).mapsHemis{h} ];
+                        cVec2   = [  cVec2        s];
+                    end
+                end
+            end
+            outliers = oefVec2 < 0.9;
+            x = oefVec2(outliers);
+            y = tdVec2(outliers);
+            this.scatter2(oefVec2, tdVec2, 'category', cVec2, 'size', 200);  
+            mdl = fitlm(x, y)    
+        end   
+        function plotOefIndex2ThicknessDiff3(this)
+            % plot patients ~30
+            
+            load(this.oefMat, 'oef*');
+            load(this.tdMat, 'td*');
+            
+            oefVec2 = [];
+            tdVec2  = [];
+            cVec2   = [];
+            for s = 1:length(this.sessions)
+                meanOef = [];
+                meanTd  = [];
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        meanOef = [meanOef oefStr(s).mapsHemis{h}];
+                        meanTd  = [meanTd   tdStr(s).mapsHemis{h}];
+                        
+                    end
+                end
+                oefVec2 = [oefVec2 mean(meanOef)];
+                tdVec2  = [tdVec2  mean(meanTd)];
+                cVec2   = [cVec2 s];
+            end
+            outliers = oefVec2 > 0.95 & oefVec2 < 1.2;
+            x = oefVec2(outliers);
+            y = tdVec2(outliers);
+            this.scatter2(x, y, 'category', cVec2(outliers), 'size', 400);  
+            mdl = fitlm(x, y)
+        end 
+        
+        function inflatedViewThickness(~, varargin)
+            % mm-01-{020, 028, 033}
+            
+            ip = inputParser;
+            addParameter(ip, 'sessionPath', pwd, @isdir);
+            addParameter(ip, 'hemis', 'lh', @ischar);
+            parse(ip, varargin{:});
+            h = ip.Results.hemis;
+            
+            pwd0 = pushd(ip.Results.sessionPath);
+            mlbash(['freeview -f ' ...
+                'surf/lh.inflated:overlay=lh.thickness:overlay_threshold=0.1,3::name=inflated_thickness_lh:visible=1 ' ...
+                'surf/rh.inflated:overlay=rh.thickness:overlay_threshold=0.1,3::name=inflated_thickness_rh:visible=1 ' ...
+                '--viewport 3d']);
+            
+            %mlbash(sprintf(['freeview -f ' ...
+                %'surf/%s.inflated:overlay=%s.thickness:overlay_threshold=0.1,3::name=inflated_thickness:visible=1 ' ...
+                %'--viewport 3d'], h, h, h, h));
+            
+                %'surf/%s.inflated:visible=0 ' ...
+                %'surf/%s.pial:annot=aparc.annot:name=pial_aparc:visible=0 ' ...
+                %'surf/%s.pial:annot=aparc.a2009s.annot:name=pial_aparc_des:visible=0 ' ...                
+                %'surf/%s.white:visible=0 ' ...
+                %'surf/%s.pial ' ...
+                %, h, h, h
+            popd(pwd0);
+        end
+        
     end
     
     %% PRIVATE
@@ -547,6 +1542,18 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             end
         end
 
+        function statsPrintf(this, stats, s, h)
+            if (strcmp(this.territory, 'all_aca_mca') || strcmp(this.territory, 'mca_max'))
+                fprintf('%s:  stats(%s, %s):  mean  %4.2f  std  %4.2f  max  %4.2f\n', ...
+                    this.territory, this.sessions{s}, this.theHemis{h}, stats.mean, stats.std, stats.max);            
+            end
+        end
+        function peaksPrintf(this, stats, s, h)
+            if (strcmp(this.territory, 'all_aca_mca') || strcmp(this.territory, 'mca_max'))
+                fprintf('%s:  stats(%s, %s):  mean  %4.2f  peak  %4.2f\n', ...
+                    this.territory, this.sessions{s}, this.theHemis{h}, stats.mean, stats.peak);            
+            end
+        end
     end
     
 	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy 

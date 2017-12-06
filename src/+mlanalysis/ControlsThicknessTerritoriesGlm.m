@@ -289,7 +289,7 @@ classdef ControlsThicknessTerritoriesGlm
             cd(this.studyPath);           
             ds = dataset(            this.(pred)(~this.exclusions), this.thicknessAbsolute(~this.exclusions));
             ds.Properties.VarNames    = {  pred                         'thicknessAbsolute' };
-            ds.Properties.Description =   '1/thickness <- Sum_j c_j predictors_j + eps';  
+            ds.Properties.Description =   'thickness <- Sum_j c_j predictors_j + eps';  
         end        
         function ds   = theStudyDataset2(this)
             assert(this.datasetSwitches('oefRatio'));
@@ -298,7 +298,7 @@ classdef ControlsThicknessTerritoriesGlm
             cd(this.studyPath);           
             ds = dataset(             this.oefRatio(~this.exclusions), this.thicknessAbsolute(~this.exclusions));
             ds.Properties.VarNames    = { 'oefRatio'                       'thicknessAbsolute' };
-            ds.Properties.Description =   '1/thickness <- Sum_j c_j predictors_j + eps';            
+            ds.Properties.Description =   'thickness <- Sum_j c_j predictors_j + eps';            
         end
         function ds   = theStudyDataset4(this)
             assert(this.datasetSwitches('sex'));
@@ -311,7 +311,7 @@ classdef ControlsThicknessTerritoriesGlm
                                       this.oefRatio(~this.exclusions), this.thicknessAbsolute(~this.exclusions));
             ds.Properties.VarNames    = { 'sex'                            'age' ...
                                           'oefRatio'                       'thicknessAbsolute' };
-            ds.Properties.Description =   '1/thickness <- Sum_j c_j predictors_j + eps';            
+            ds.Properties.Description =   'thickness <- Sum_j c_j predictors_j + eps';            
         end
     end
     

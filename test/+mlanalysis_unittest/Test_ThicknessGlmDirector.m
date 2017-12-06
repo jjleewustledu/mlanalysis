@@ -15,7 +15,7 @@ classdef Test_ThicknessGlmDirector < matlab.unittest.TestCase
 
 	properties 
  		testObj         
-        sessionPathLocal = '/Volumes/PassportStudio2/cvl/np755/mm01-020_p7377_2009feb5';
+        sessionPathLocal = '/Volumes/SeagateBP4/cvl/np755/mm01-020_p7377_2009feb5';
  	end 
 
 	methods (Test) 
