@@ -13,16 +13,19 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
 
 	properties 
         cerebellar_stats_filename = '/Volumes/SeagateBP4/cvl/np755/cerebellar_oefnq_statistics_2015oct12.mat'
-        age_filename              = '/Volumes/SeagateBP4/cvl/np755/ageAtPresentation.mat'
-        sex_filename              = '/Volumes/SeagateBP4/cvl/np755/subjectsSex.mat'
+        age_filename              = '/Volumes/SeagateBP4/cvl/np755/ageAtPresentation_2017dec15.mat'
+        sex_filename              = '/Volumes/SeagateBP4/cvl/np755/subjectsSex_2017dec15.mat'
         sessions                  = { ...
             'mm01-001_p7663_2010jun23' ...
+            'mm01-003_p7243_2008may21' ...
+            'mm01-004_p7605_2010apr5'  ...
             'mm01-005_p7270_2008jun18' ...
             'mm01-006_p7260_2008jun9'  ...
             'mm01-007_p7686_2010aug20' ...
             'mm01-009_p7660_2010jun22' ...
             'mm01-011_p7795_2011mar8'  ...
             'mm01-012_p7414_2009apr27' ...
+            'mm01-017_p7309_2008aug20' ...
             'mm01-018_p7507_2009oct21' ...
             'mm01-019_p7510_2009oct26' ...
             'mm01-020_p7377_2009feb5'  ...
@@ -30,6 +33,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             'mm01-022_p7653_2010jun15' ...
             'mm01-025_p7470_2009aug10' ...
             'mm01-028_p7542_2009dec17' ...
+            'mm01-029_p7577_2010mar1'  ...
             'mm01-030_p7604_2010apr2'  ...
             'mm01-031_p7610_2010apr7'  ...
             'mm01-032_p7624_2010apr28' ...
@@ -44,6 +48,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             'mm01-046_p7819_2011apr19' ...
             'mm01-048_p7880_2011aug10' ...
             'mm02-001_p7146_2008jan4'  ...
+            'mm02-003_p7475_2009aug24' ...
             'mm03-001_p7229_2008apr28' ...
             'mm06-005_p7766_2011jan14' } % defective alignments:  01-012, 01-025; fixed 2017nov19
         exclusionLabel = 'Colin'
@@ -69,11 +74,11 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
         function g = get.exclusions(this)
             switch (this.exclusionLabel)
                 case 'Colin'
-                    g = { '' '' '' '' 'R' '' '' '' '' ''  'L' 'R' 'L' 'L' 'L' '' '' '' '' 'L' 'R' '' '' 'R' '' '' '' '' '' '' };
+                    g = { '' 'L' 'R' '' '' '' 'R' '' '' 'L' '' '' '' 'L' 'R' 'L' 'L' '' 'L' '' '' '' '' 'L' 'R' '' '' 'R' '' '' '' 'L' '' '' '' };
                 case 'orig'
-                    g = { '' '' '' '' 'R' '' '' '' '' ''  'L' 'R' 'L' 'L' 'L' '' '' '' '' 'L' '' '' '' 'R' '' '' '' '' '' '' };
+                    g = { '' 'L' 'R' '' '' '' 'R' '' '' 'L' '' '' '' 'L' 'R' 'L' 'L' '' 'L' '' '' '' '' 'L' ''  '' '' 'R' '' '' '' 'L' '' '' '' };
                 case 'noexcl'
-                    g = { '' '' '' '' '' '' '' '' '' ''  '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' '' };
+                    g = { '' ''  ''  '' '' '' ''  '' '' ''  '' '' '' ''  ''  ''  ''  '' ''  '' '' '' '' ''  ''  '' '' ''  '' '' '' ''  '' '' '' };
                 otherwise
                     error('mlanalysis:unsupportedSwitchCase', ...
                         'MoyamoyaPaper.get.exlucsions');
@@ -100,11 +105,11 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
         function g = get.model(this)
             switch (this.modelLabel)
                 case 'fixed'
-                    g = 'thickd ~ 1 + age + oef';
+                    g = 'thickd ~ 1 + sex + age + oef';
                 case '1subj'
-                    g = 'thickd ~ 1 + age + oef + (1|subj)';
+                    g = 'thickd ~ 1 + sex + age + oef + (1|subj)';
                 case 'oefsubj'
-                    g = 'thickd ~ 1 + age + oef + (1 + oef|subj)';
+                    g = 'thickd ~ 1 + sex + age + oef + (1 + oef|subj)';
                 otherwise
                     error('mlanalysis:unsupportedSwitchcase', 'MoyamoyaPaper.get.model');
             end
@@ -113,6 +118,10 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
 
 	methods (Static)
         
+        function buildThickness(sessPth)
+            vrctb = mlsurfer.VolumeRoiCorticalThicknessBuilder('sessionpath', sessPth);
+            vrctb.buildThickness;
+        end
         function visitIdSegstats(sessPth)
             %% VISITIDSEGSTATS
             %  @param session_path
@@ -120,12 +129,15 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             import mlfourd.* mlanalysis.*;
             niiFilenames = {'oo_sumt_737353fwhh_on_T1' 'ho_sumt_737353fwhh_on_T1'};
             hemis        = {'lh' 'rh'};
-            for n = 1:2
-                bldr.fslPath = fullfile(sessPth, 'fsl', '');
-                bldr.mriPath = fullfile(sessPth, 'mri', '');
-                bldr.product = NIfTId.load(fullfile(bldr.fslPath, niiFilenames{n}));
-                for h = 1:2
-                    MoyamoyaPaper.visitIdSegstats_(bldr, hemis{h});
+            dt = mlsystem.DirTool(fullfile(sessPth, 'fsl', '*o_sumt_737353fwhh_on_T1.stats'));
+            if (0 == length(dt)) %#ok<ISMT>
+                for n = 1:2
+                    bldr.fslPath = fullfile(sessPth, 'fsl', '');
+                    bldr.mriPath = fullfile(sessPth, 'mri', '');
+                        bldr.product = NIfTId.load(fullfile(bldr.fslPath, niiFilenames{n}));
+                        for h = 1:2
+                            MoyamoyaPaper.visitIdSegstats_(bldr, hemis{h});
+                        end
                 end
             end
         end
@@ -220,40 +232,27 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
         end
         function flirt(sessPth)
             import mlanalysis.*;
-            if (lexist( ...
-                    fullfile(sessPth, 'ECAT_EXACT', '962_4dfp', [str2pnum(sessPth) 'oc1.nii.gz'])))
-                tracers = {'ho' 'oo' 'oc' 'tr'};
-                ext = {'_sumt' '_sumt' '' ''};
-                MoyamoyaPaper.flirt_(sessPth, tracers, ext, 1);
-            else
-                tracers = {'ho' 'oo' 'tr'};
-                ext = {'_sumt' '_sumt' ''};
-                MoyamoyaPaper.flirt_(sessPth, tracers, ext, 1);
-            end
+            tracers = { 'oo' 'ho' };  
+            MoyamoyaPaper.flirt_(sessPth, tracers);
         end
-        function flirt_(sessPth, tracers, ext, sid)
+        function flirt_(sessPth, tracers)
             pnum = str2pnum(sessPth);
-            mlbash(sprintf('mri_convert %s/mri/T1.mgz %s/mri/T1.nii.gz', sessPth, sessPth));
-            mlbash(sprintf( ...
-                ['/usr/local/fsl/bin/flirt ' ...
-                 '-in   %s/ECAT_EXACT/962_4dfp/%sall_737353fwhh.nii.gz ' ...
-                 '-ref  %s/mri/T1.nii.gz ' ...
-                 '-out  %s/fsl/all_737353fwhh_on_T1.nii.gz ' ...
-                 '-omat %s/fsl/all_737353fwhh_on_T1.mat ' ...
-                 '-bins 256 -cost normmi ' ...
-                 '-searchrx -90 90 -searchry -90 90 -searchrz -90 90 ' ...
-                 '-dof 6 -interp trilinear'], ...
-                 sessPth, pnum, sessPth, sessPth, sessPth));
-             for t = 1:length(tracers)
-                 mlbash(sprintf( ...
-                     ['/usr/local/fsl/bin/flirt ' ...
-                      '-in %s/ECAT_EXACT/962_4dfp/%s%s%i%s_737353fwhh.nii.gz ' ...
-                      '-applyxfm -init %s/fsl/all_737353fwhh_on_T1.mat ' ...
-                      '-out %s/fsl/%s%s_737353fwhh_on_T1.nii.gz ' ...
-                      '-paddingsize 0.0 -interp trilinear ' ...
-                      '-ref %s/mri/T1.nii.gz'], ...
-                      sessPth, pnum, tracers{t}, sid, ext{t}, sessPth, sessPth, tracers{t}, ext{t}, sessPth));
-             end
+            if (~lexist(sprintf('%s/mri/T1.nii.gz', sessPth), 'file'))
+                mlbash(sprintf('mri_convert %s/mri/T1.mgz %s/mri/T1.nii.gz', sessPth, sessPth));
+            end
+            for t = 1:length(tracers)
+                mlbash(sprintf( ...
+                    ['/usr/local/fsl/bin/flirt ' ...
+                     '-in   %s/ECAT_EXACT/pet/%s%s1_frames/%s%s1_sumt_737353fwhh.nii.gz ' ...
+                     '-ref  %s/mri/T1.nii.gz ' ...
+                     '-out  %s/fsl/%s_sumt_737353fwhh_on_T1.nii.gz ' ...
+                     '-omat %s/fsl/%s_sumt_737353fwhh_on_T1.mat ' ...
+                     '-bins 256 -cost mutualinfo ' ...
+                     '-searchrx -90 90 -searchry -90 90 -searchrz -90 90 ' ...
+                     '-dof 6 -interp trilinear'], ...
+                     sessPth, pnum, tracers{t}, pnum, tracers{t}, sessPth, sessPth, tracers{t}, sessPth, tracers{t})); % normmi mutualinfo corratio
+                 mlbash(sprintf('fsleyes %s/mri/T1.nii.gz %s/fsl/%s_sumt_737353fwhh_on_T1.nii.gz', sessPth, sessPth, tracers{t}));
+            end
         end
         
         function visualizeOefnq
@@ -708,6 +707,9 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             h1.BinWidth = 0.01;
             popd(pwd0);
             diary off
+            
+            % [mM -2*sdM+mM 2*sdM+mM]
+            % 1.076158575470095   0.805454787086135   1.346862363854055
         end
         function [tdVec,tdStr] = histThicknessDiff(this)
             % tdVec has sessions with hemispheres within
@@ -768,13 +770,16 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                         tVec = [tVec parcVec]; %#ok<AGROW>
                     end
                     stats{s,h} = struct('mean', mean(parcVec), 'std', std(parcVec));
-                    this.statsPrintf(stats{s,h}, s, h);
+                    %this.statsPrintf(stats{s,h}, s, h);
                 end
             end            
             save(this.tMat);
             histogram(tVec);
             popd(pwd0);
             diary off
+            
+            % [mT -2*sdT+mT 2*sdT+mT] 
+            %  2.488187134502925   1.565144239983369   3.411230029022482
         end
         function histThicknessIndex(this)
             pwd0 = pushd(this.subjectsDir);

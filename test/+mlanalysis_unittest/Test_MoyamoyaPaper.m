@@ -30,6 +30,17 @@ classdef Test_MoyamoyaPaper < matlab.unittest.TestCase
  	end 
 
 	methods (Test) 
+        function test_ttest2(this)
+            C = load('/Volumes/SeagateBP4/cvl/controls/pet/ControlData_histOefIndex_101010fwhh_oefVec_mca_max.mat');            
+            M = load('/Volumes/SeagateBP4/cvl/np755/MoyamoyaPaper_histOefIndex_737363fwhh_oefVec_Colin_mca_max_mean.mat');
+            [h,p,ci,stats] = ttest2(M.oefVec, C.oefVec, 'Vartype', 'unequal', 'Tail', 'both')
+        end
+        function test_visitIdSegstats(this)
+            for s = 1:length(this.testObj.sessions)
+                this.testObj.visitIdSegstats( ...
+                    fullfile(this.subjectsDir, this.testObj.sessions{s}));
+            end
+        end
         function test_checkAlignments(this)
             sesss = this.testObj.sessions;
             for s = 1:length(sesss)
@@ -40,7 +51,7 @@ classdef Test_MoyamoyaPaper < matlab.unittest.TestCase
             end
         end
         function test_diaryStats(this)
-            terrs = {'mca_max' 'all_aca_mca'}; % 'aca_max' 'pca_max' 'aca_min' 'mca_min' 'pca_min'
+            terrs = {'mca_max'}; % 'aca_max' 'pca_max' 'aca_min' 'mca_min' 'pca_min'
             for t = 1:length(terrs)
                 this.testObj.territory = terrs{t};
                 this.testObj.diaryStats = ['diary_' terrs{t}];
@@ -49,7 +60,7 @@ classdef Test_MoyamoyaPaper < matlab.unittest.TestCase
             end
         end
         function test_prepareDataOnFilesystem(this)
-            terrs = {'mca_max' 'all_aca_mca'}; % 'aca_max' 'pca_max' 'aca_min' 'mca_min' 'pca_min'
+            terrs = {'mca_max'}; % 'all' 'mca_max' 'all_aca_mca' 'aca_max' 'pca_max' 'aca_min' 'mca_min' 'pca_min'
             for t = 1:length(terrs)
                 this.testObj.territory = terrs{t};
                 this.testObj.categories;
@@ -144,6 +155,7 @@ classdef Test_MoyamoyaPaper < matlab.unittest.TestCase
  	methods (TestClassSetup)
  		function setupMoyamoyaPaper(this) 
             setenv('SUBJECTS_DIR', this.subjectsDir);
+            setenv('VERBOSITY', '0');
             this.pwd0 = pushd(this.subjectsDir);
  			this.testObj = mlanalysis.MoyamoyaPaper( ...
                 'subjectsDir', this.subjectsDir, ...

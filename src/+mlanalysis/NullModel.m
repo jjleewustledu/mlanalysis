@@ -1,0 +1,192 @@
+classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
+	%% NULLMODEL  
+
+	%  $Revision$
+ 	%  was created 26-Dec-2017 23:28:05 by jjlee,
+ 	%  last modified $LastChangedDate$ and placed into repository /Users/jjlee/Local/src/mlcvl/mlanalysis/src/+mlanalysis.
+ 	%% It was developed on Matlab 9.3.0.713579 (R2017b) for MACI64.  Copyright 2017 John Joowon Lee.
+ 	
+    
+    properties (Dependent)
+        kernel
+ 		independentData
+        dependentData
+    end
+    
+	properties	 
+        classOfSolver
+        constructGenerative          
+        %M        = mlbayesian.McmcKernel.N_SIGMAS/2; % match the prior width to the annealing width
+        M          = 50; % noninformative prior width
+        nAnneal    = 20
+        nBeta      = 50
+        nProposals = 100
+    end
+
+    methods (Static)        
+        function name = parameterIndexToName(varargin)
+            name = '';
+        end
+    end
+    
+	methods
+        
+        %% GET, SET
+        
+        function g = get.kernel(this)
+            g = this.kernel_;
+        end
+        function g = get.independentData(this)
+            g = this.kernel_.independentData;
+        end
+        function this = set.independentData(this, s)
+            this.kernel_.independentData = s;
+        end
+        function g = get.dependentData(this)
+            g = this.kernel_.dependentData;
+        end
+        function this = set.dependentData(this, s)            
+            this.kernel_.dependentData = s;
+        end
+        
+        %%
+
+        function ed   = estimateData(this)
+            ed = this.kernel_.estimateData(this.modelParameters);
+        end
+        function Q    = objectiveFunc(this)
+            Q = this.kernel_.objectiveFunc(this.modelParameters);
+        end
+        function ps   = modelParameters(varargin)
+            ps = [];
+        end
+        function sps  = modelStdParameters(varargin)
+            sps = [];
+        end
+        function this = doConstructGenerative(this, varargin)
+            this.independentData = [];
+            this.dependentData = [];
+        end
+        function ps   = solverParameters(this)
+            switch (this.classOfSolver)
+                case 'mlanalysis.LevenbergMarquardt'
+                    ps = this.LMParameters;
+                case 'mlbayesian.BretthorstMcmc'
+                    ps = this.mcmcParameters;
+                case 'mlnest.NestedSamplingMain'
+                    ps = this.nestParameters;
+                case 'mlstan.FlatHMC'
+                    ps = this.hmcParameters;
+                case 'mlstan.HierarchicalHMC'
+                    ps = this.hierarchicalHmcParameters;
+                otherwise
+                    error('mlbayesian:unsupportedSwitchStrategy', ...
+                        'PolynomialsModel.solverParameters.this.classOfSolver->%s', this.classOfSolver);
+            end
+        end	
+        function this = updateModel(this, solvr)
+            assert(isa(solvr, 'mlanalysis.ISolver'));
+            switch (class(solvr))
+                case 'mlanalysis.LevenbergMarquardt'
+                    this = this.LMParameters2model(solvr);
+                case 'mlbayesian.BretthorstMcmc'
+                    this = this.mcmcParameters2model(solvr);
+                case 'mlnest.NestedSamplingMain'
+                    this = this.nestParameters2model(solvr);
+                case 'mlstan.FlatHMC'
+                    this = this.hmcParameters2model(solvr);
+                case 'mlstan.HierarchicalHMC'
+                    this = this.hierarchicalHmcParameters2model(solvr);
+                otherwise
+                    error('mlbayesian:unsupportedSwitchStrategy', ...
+                        'PolynomialsModel.updateModel.solvr->%s', solvr);
+            end
+        end      
+
+        function plot(this, varargin)
+            figure;
+            plot(this.independentData, this.dependentData, 'o',  ...
+                 this.independentData, this.estimateData,  '-', varargin{:});
+            legend('data', 'estimated');  
+            title(class(this));
+        end
+        function writetable(varargin)
+        end
+        
+        %%
+		  
+ 		function this = NullModel(varargin)
+ 			%% NULLMODEL
+            
+            ip = inputParser;
+            ip.KeepUnmatched = true;
+            addParameter(ip, 'independentData', [], @isnumeric);
+            addParameter(ip, 'dependentData',   [],   @isnumeric);
+            addParameter(ip, 'constructGenerative', false, @islogical);
+            addParameter(ip, 'datedFilename',       false, @islogical);
+            parse(ip, varargin{:});  
+
+            this.kernel_             = mlbayesian.NullKernel(ip.Results.independentData, ip.Results.dependentData);
+            this.constructGenerative = ip.Results.constructGenerative;    
+            this.datedFilename_      = ip.Results.datedFilename;
+ 		end
+ 	end 
+    
+    %% PROTECTED
+    
+    properties (Access = protected)
+        kernel_
+        datedFilename_
+    end 
+    
+    methods (Access = protected)
+        function ps   = LMParameters(this)
+            ps = [];
+        end
+        function ps = mcmcParameters(this)
+            %% MCMCPARAMETERS must be in heap memory for speed
+            %  @return struct containing:
+            %  fixed      is logical, length := length(this.modelParameters)
+            %  fixedValue is numeric, "
+            %  min        is numeric, "; for prior distribution
+            %  mean       is numeric, "
+            %  max        is numeric, "; for prior distribution
+            %  std        is numeric, "; for annealing
+            %  nAnneal    =  20, number of loops per annealing temp
+            %  nBeta      =  50, number of temperature steps
+            %  nPop       =  50, number of population for annealing/burn-in and proposal/sampling
+            %  nProposals = 100, number of proposals for importance sampling
+            %  nSamples   is numeric, numel of independentData
+            
+            ps = struct( ...
+                'fixed',      logical([]), ...
+                'fixedValue', [], ...
+                'min_',       [], ...
+                'mean_',      [], ...
+                'max_',       [], ... 
+                'std_',       [], ...
+                'nAnneal',    this.nAnneal, ...
+                'nBeta',      this.nBeta, ...
+                'nPop',       50, ...
+                'nProposals', this.nProposals, ...
+                'nSamples',   numel(this.independentData));
+        end
+        function this = mcmcParameters2model(this, solvr)
+            assert(isa(solvr, 'mlbayesian.IMcmcSolver'));
+            this.as  = ensureRowVector(solvr.kernel.bestFitParams);
+            this.sas = ensureRowVector(solvr.kernel.stdParams);
+        end
+        function ps   = nestParameters(this)
+            ps = [];
+        end
+        function ps   = hmcParameters(this)
+            ps = [];
+        end
+        function ps   = hierarchicalHmcParameters(this)
+            ps = [];
+        end	
+    end  
+
+	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy
+ end
+
