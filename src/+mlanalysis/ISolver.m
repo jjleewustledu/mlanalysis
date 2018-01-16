@@ -7,7 +7,7 @@ classdef (Abstract) ISolver
  	%% It was developed on Matlab 9.3.0.713579 (R2017b) for MACI64.  Copyright 2017 John Joowon Lee.
  	
 	properties (Abstract)		
- 		constructGenerative % used stored parameters to generate synthetic data
+ 		useSynthetic % used stored parameters to generate synthetic data
         isfinished
         model
  	end

@@ -7,10 +7,11 @@ classdef (Abstract) IModel
  	%% It was developed on Matlab 9.3.0.713579 (R2017b) for MACI64.  Copyright 2017 John Joowon Lee.
  	
 	properties (Abstract)
+        kernel
  		independentData
         dependentData  
         
-        constructGenerative % let initial parameters form synthetic data
+        useSynthetic % let initial parameters form synthetic data
         M % noninformative prior width
         nAnneal
         nBeta
@@ -27,7 +28,8 @@ classdef (Abstract) IModel
         ps   = modelParameters(this)    
         sps  = modelStdParameters(this)
         ps   = solverParameters(this)
-        this = doConstructGenerative(this)
+        this = constructSyntheticKernel(this)
+        this = constructKernelWithData(this)
         this = updateModel(this, solvr)
         
         plot(this)

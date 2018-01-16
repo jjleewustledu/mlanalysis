@@ -4,8 +4,7 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
 	%  $Revision$
  	%  was created 26-Dec-2017 23:28:05 by jjlee,
  	%  last modified $LastChangedDate$ and placed into repository /Users/jjlee/Local/src/mlcvl/mlanalysis/src/+mlanalysis.
- 	%% It was developed on Matlab 9.3.0.713579 (R2017b) for MACI64.  Copyright 2017 John Joowon Lee.
- 	
+ 	%% It was developed on Matlab 9.3.0.713579 (R2017b) for MACI64.  Copyright 2017 John Joowon Lee. 	
     
     properties (Dependent)
         kernel
@@ -13,9 +12,9 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
         dependentData
     end
     
-	properties	 
+	properties
         classOfSolver
-        constructGenerative          
+        useSynthetic          
         %M        = mlbayesian.McmcKernel.N_SIGMAS/2; % match the prior width to the annealing width
         M          = 50; % noninformative prior width
         nAnneal    = 20
@@ -23,7 +22,7 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
         nProposals = 100
     end
 
-    methods (Static)        
+    methods (Static)
         function name = parameterIndexToName(varargin)
             name = '';
         end
@@ -33,19 +32,19 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
         
         %% GET, SET
         
-        function g = get.kernel(this)
+        function g    = get.kernel(this)
             g = this.kernel_;
         end
-        function g = get.independentData(this)
+        function g    = get.independentData(this)
             g = this.kernel_.independentData;
         end
         function this = set.independentData(this, s)
             this.kernel_.independentData = s;
         end
-        function g = get.dependentData(this)
+        function g    = get.dependentData(this)
             g = this.kernel_.dependentData;
         end
-        function this = set.dependentData(this, s)            
+        function this = set.dependentData(this, s)
             this.kernel_.dependentData = s;
         end
         
@@ -63,9 +62,11 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
         function sps  = modelStdParameters(varargin)
             sps = [];
         end
-        function this = doConstructGenerative(this, varargin)
-            this.independentData = [];
-            this.dependentData = [];
+        function        constructSyntheticKernel(~)
+            error('mlanalysis:notImplemented', 'NullModel.constructSyntheticKernel');
+        end
+        function        constructKernelWithData(~)
+            error('mlanalysis:notImplemented', 'NullModel.constructKernelWithData');
         end
         function ps   = solverParameters(this)
             switch (this.classOfSolver)
@@ -112,8 +113,6 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
         end
         function writetable(varargin)
         end
-        
-        %%
 		  
  		function this = NullModel(varargin)
  			%% NULLMODEL
@@ -121,14 +120,16 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
             ip = inputParser;
             ip.KeepUnmatched = true;
             addParameter(ip, 'independentData', [], @isnumeric);
-            addParameter(ip, 'dependentData',   [],   @isnumeric);
-            addParameter(ip, 'constructGenerative', false, @islogical);
-            addParameter(ip, 'datedFilename',       false, @islogical);
+            addParameter(ip, 'dependentData',   [], @isnumeric);
+            addParameter(ip, 'solverClass',         @ischar);
+            addParameter(ip, 'useSynthetic', false, @islogical);
+            addParameter(ip, 'datedFilename', false, @islogical);
             parse(ip, varargin{:});  
 
-            this.kernel_             = mlbayesian.NullKernel(ip.Results.independentData, ip.Results.dependentData);
-            this.constructGenerative = ip.Results.constructGenerative;    
-            this.datedFilename_      = ip.Results.datedFilename;
+            this.kernel_        = mlbayesian.NullKernel(ip.Results.independentData, ip.Results.dependentData);
+            this.classOfSolver  = ip.Results.solverClass;
+            this.useSynthetic   = ip.Results.useSynthetic;    
+            this.datedFilename_ = ip.Results.datedFilename;
  		end
  	end 
     
@@ -140,10 +141,33 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
     end 
     
     methods (Access = protected)
+        function this = setupKernel(this)
+            if (this.useSynthetic || ...
+                    all(isempty(this.independentData) || all(isempty(this.dependentData))))
+                this = this.constructSyntheticKernel;
+            else 
+                this = this.constructKernelWithData;
+            end  
+        end
+        function this = setupFilesystem(this)
+            %% for mlio.AbstractIO            
+            this.filepath_ = pwd;
+            this.fileprefix_ = strrep(class(this), '.', '_');
+            if (this.datedFilename_)
+                this.fileprefix_ = [this.fileprefix_ '_' datestr(now, 30)];
+            end
+            this.filesuffix_ = '.mat';
+        end
+        function this = checkModel(this)
+            assert(ischar(this.parameterIndexToName(length(this.modelParameters))), ... 
+                'mismatched lengths of parameterIndexToName and modelParameters'); 
+        end
         function ps   = LMParameters(this)
             ps = [];
         end
-        function ps = mcmcParameters(this)
+        function this = LMParameters2model(this, ~)
+        end 
+        function ps   = mcmcParameters(this)
             %% MCMCPARAMETERS must be in heap memory for speed
             %  @return struct containing:
             %  fixed      is logical, length := length(this.modelParameters)
@@ -179,14 +203,21 @@ classdef NullModel < mlanalysis.IModel & mlio.AbstractIO
         function ps   = nestParameters(this)
             ps = [];
         end
+        function this = nestParameters2model(this, ~)
+        end 
         function ps   = hmcParameters(this)
             ps = [];
         end
+        function this = hmcParameters2model(this, ~)
+        end 
         function ps   = hierarchicalHmcParameters(this)
             ps = [];
-        end	
+        end
+        function this = hierarchicalHmcParameters2model(this, ~)
+        end 
     end  
 
 	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy
+    
  end
 
