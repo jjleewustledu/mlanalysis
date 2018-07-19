@@ -25,15 +25,64 @@ classdef Test_MoyamoyaPaper < matlab.unittest.TestCase
         territory = 'mca_max' % 'all' 'all_aca_mca' 'mca_max' 'aca' 'pca'
         statistic = 'mean'
         exclusionLabel = 'Colin'
-        modelLabel = 'oefsubj' % 'fixed' '1subj' 'oefsubj'
+        modelLabel = 'tau_oefsubj' % 'oefsubj' 'fixed' '1subj' 'oefsubj'
         hemi = 'lh'
+        doplot = true
  	end 
 
 	methods (Test) 
-        function test_ttest2(this)
+        function test_loadData(this)     
+            this.testObj.fitGlme;
+            %this.testObj.fitGlme('graining', 'hemisphere', 'modelLabel', 'tau_1subj');
+            %this.testObj.fitGlme('graining', 'patient', 'modelLabel', 'tau_1subj');
+        end
+        function test_table1(this)            
+            dfile = '/Users/jjlee/Box Sync/Derdeyn/AJNR 2017/test_table1.log';
+            deleteExisting(dfile);
+            diary(dfile);
+            d = this.testObj.createTable1;
+            disp(d)
+            diary('off');
+        end
+        function test_fitGlme(this)
+            dfile = '/Users/jjlee/Box Sync/Derdeyn/AJNR 2017/test_fitGlme.log';
+            deleteExisting(dfile);
+            diary(dfile);
+            this.testObj.fitGlme;
+ 			this.testObj.fitGlme('graining', 'hemisphere', 'modelLabel', 'tau_1subj');  
+ 			this.testObj.fitGlme('graining', 'patient',    'modelLabel', 'tau_fixed');  
+            saveFigures('/Users/jjlee/Box Sync/Derdeyn/AJNR 2017/fig_fitGlme', 'closeFigure', false);
+            diary('off');
+        end
+        function test_fitGlme_rev2comm1(this)
+            dfile = '/Users/jjlee/Box Sync/Derdeyn/AJNR 2017/test_fitGlme_rev2comm1.log';
+            deleteExisting(dfile);
+            diary(dfile);
+            this.testObj.fitGlme(                          'modelLabel', 'nooefr_1subj');
+ 			this.testObj.fitGlme('graining', 'hemisphere', 'modelLabel', 'nooefr_1subj');  
+ 			this.testObj.fitGlme('graining', 'patient',    'modelLabel', 'nooefr_fixed');  
+            saveFigures('/Users/jjlee/Box Sync/Derdeyn/AJNR 2017/fig_fitGlme_rev2comm1', 'closeFigure', true);
+            diary('off');
+        end
+        function test_fitGlme3(this)
+ 			this.testObj.fitGlme('graining', 'patient',    'modelLabel', 'tau_fixed');  
+        end
+        function test_fitglmeReviewer(this)
+ 			this.testObj = mlanalysis.MoyamoyaPaper('modelLabel', 'tau_oefsubj');
+            this.testObj.fitglmeReviewer;
+        end
+        function test_fitglmeReviewer2(this)
+ 			this.testObj = mlanalysis.MoyamoyaPaper('modelLabel', 'tau_1subj');
+            this.testObj.fitglmeReviewer2;
+        end
+        function test_fitglmeReviewer3(this)
+ 			this.testObj = mlanalysis.MoyamoyaPaper('modelLabel', 'tau_1subj');
+            this.testObj.fitglmeReviewer3;
+        end
+        function test_ttest2(~)
             C = load('/Volumes/SeagateBP4/cvl/controls/pet/ControlData_histOefIndex_101010fwhh_oefVec_mca_max.mat');            
             M = load('/Volumes/SeagateBP4/cvl/np755/MoyamoyaPaper_histOefIndex_737363fwhh_oefVec_Colin_mca_max_mean.mat');
-            [h,p,ci,stats] = ttest2(M.oefVec, C.oefVec, 'Vartype', 'unequal', 'Tail', 'both')
+            [h,p,ci,stats] = ttest2(M.oefVec, C.oefVec, 'Vartype', 'equal', 'Tail', 'both') %#ok<*NOPRT,*ASGLU>
         end
         function test_visitIdSegstats(this)
             for s = 1:length(this.testObj.sessions)
@@ -94,21 +143,11 @@ classdef Test_MoyamoyaPaper < matlab.unittest.TestCase
             this.testObj.fitglmeOefIndex2Thickness;
         end
         function test_fitglmeOefIndex2Thickness2(this)
- 			this.testObj = mlanalysis.MoyamoyaPaper( ...
-                'subjectsDir', this.subjectsDir, ...
-                'Territory', this.territory, ...
-                'statistic', this.statistic, ...
-                'exclusionLabel', this.exclusionLabel, ...
-                'modelLabel', '1subj');
+ 			this.testObj = mlanalysis.MoyamoyaPaper('modelLabel', '1subj');
             this.testObj.fitglmeOefIndex2Thickness2;
         end
         function test_fitglmeOefIndex2Thickness3(this)
- 			this.testObj = mlanalysis.MoyamoyaPaper( ...
-                'subjectsDir', this.subjectsDir, ...
-                'Territory', this.territory, ...
-                'statistic', this.statistic, ...
-                'exclusionLabel', this.exclusionLabel, ...
-                'modelLabel', '1subj');
+ 			this.testObj = mlanalysis.MoyamoyaPaper('modelLabel', '1subj');
             this.testObj.fitglmeOefIndex2Thickness3;
         end
         function test_fitglmOefIndex2Thickness2(this)
@@ -162,7 +201,8 @@ classdef Test_MoyamoyaPaper < matlab.unittest.TestCase
                 'Territory', this.territory, ...
                 'statistic', this.statistic, ...
                 'exclusionLabel', this.exclusionLabel, ...
-                'modelLabel', this.modelLabel);
+                'modelLabel', this.modelLabel, ...
+                'doplot', this.doplot);
             this.addTeardown(@this.popd);
  		end 
  	end 

@@ -10,11 +10,17 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
  	%  developed on Matlab 8.5.0.197613 (R2015a) 
  	%  $Id$ 
  	 
+    properties (Constant)
+        OEF_MIN = eps % 0.7
+        OEF_MAX = inf % 1.5
+        OEF_NORM_UPPER_LIMIT = 1.213
+    end
 
 	properties 
         cerebellar_stats_filename = '/Volumes/SeagateBP4/cvl/np755/cerebellar_oefnq_statistics_2015oct12.mat'
-        age_filename              = '/Volumes/SeagateBP4/cvl/np755/ageAtPresentation_2017dec15.mat'
+        age_filename              = '/Volumes/SeagateBP4/cvl/np755/ageAtImaging.mat'
         sex_filename              = '/Volumes/SeagateBP4/cvl/np755/subjectsSex_2017dec15.mat'
+        tau_filename              = '/Volumes/SeagateBP4/cvl/np755/timeFromPresentationToImaging.mat'
         sessions                  = { ...
             'mm01-001_p7663_2010jun23' ...
             'mm01-003_p7243_2008may21' ...
@@ -52,11 +58,13 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             'mm03-001_p7229_2008apr28' ...
             'mm06-005_p7766_2011jan14' } % defective alignments:  01-012, 01-025; fixed 2017nov19
         exclusionLabel = 'Colin'
-        modelLabel = 'oefsubj'
+        modelLabel = 'tau_oefsubj'
         theHemis = {'L' 'R'}
         distrib = 'Normal'
         link = 'identity'
         diaryStats = ''
+        doplot = true
+        showColorbar = false
     end 
     
     properties (Dependent)
@@ -68,16 +76,40 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
         cMat
         inclusions
         model
+        
+        % for manuscript Table 1, 2018jul11
+        table1vnames
+        table1rnames
+        total
+        white
+        black
+        asian
+        ais
+        tia
+        hemm
+        other
+        unilateral
+        bilateral
+        lesionCortical
+        lesionWM
+        lesionBG
+        tx
     end
     
     methods % GET
         function g = get.exclusions(this)
             switch (this.exclusionLabel)
-                case 'Colin'
-                    g = { '' 'L' 'R' '' '' '' 'R' '' '' 'L' '' '' '' 'L' 'R' 'L' 'L' '' 'L' '' '' '' '' 'L' 'R' '' '' 'R' '' '' '' 'L' '' '' '' };
+                case 'Colin'                    
+                    %idx  1             5               10               15                 20              25               30
+                    %g= [ 0  1   1   0  0  0  1   0  0  1   0  0  0  1   1   1   1   0  1   0  0  0  0  1   1   0  0  1   0  0  0  0   1  0  0 ];
+                    g = { '' 'L' 'R' '' '' '' 'R' '' '' 'L' '' '' '' 'L' 'R' 'L' 'L' '' 'L' '' '' '' '' 'L' 'R' '' '' 'R' '' '' '' '' 'L' '' '' };
                 case 'orig'
-                    g = { '' 'L' 'R' '' '' '' 'R' '' '' 'L' '' '' '' 'L' 'R' 'L' 'L' '' 'L' '' '' '' '' 'L' ''  '' '' 'R' '' '' '' 'L' '' '' '' };
+                    %idx  1             5               10               15                 20              25               30
+                    %num[ 0  0   0   0  0  0  0   0  0  0   0  0  0  0   0   0   0   0  0   0  0  0  0  0   0   0  0  0   0  0  0  0   0  0  0 ];
+                    g = { '' 'L' 'R' '' '' '' 'R' '' '' 'L' '' '' '' 'L' 'R' 'L' 'L' '' 'L' '' '' '' '' 'L' ''  '' '' 'R' '' '' '' '' 'L' '' '' };
                 case 'noexcl'
+                    %idx  1             5               10               15                 20              25               30
+                    %num[ 0  0   0   0  0  0  0   0  0  0   0  0  0  0   0   0   0   0  0   0  0  0  0  0   0   0  0  0   0  0  0  0   0  0  0 ];
                     g = { '' ''  ''  '' '' '' ''  '' '' ''  '' '' '' ''  ''  ''  ''  '' ''  '' '' '' '' ''  ''  '' '' ''  '' '' '' ''  '' '' '' };
                 otherwise
                     error('mlanalysis:unsupportedSwitchCase', ...
@@ -110,9 +142,85 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                     g = 'thickd ~ 1 + sex + age + oef + (1|subj)';
                 case 'oefsubj'
                     g = 'thickd ~ 1 + sex + age + oef + (1 + oef|subj)';
+                case 'tau_fixed'
+                    g = 'thickd ~ 1 + sex + age + oef + tau';
+                case 'tau_1subj'
+                    g = 'thickd ~ 1 + sex + age + oef + tau + (1|subj)';
+                case 'tau_oefsubj'
+                    g = 'thickd ~ 1 + sex + age + oef + tau + (1 + oef|subj)';
+                case 'nooefr_fixed'
+                    g = 'thickd ~ 1 + sex + age';
+                case 'nooefr_1subj'
+                    g = 'thickd ~ 1 + sex + age + (1|subj)';
                 otherwise
                     error('mlanalysis:unsupportedSwitchcase', 'MoyamoyaPaper.get.model');
             end
+        end
+        
+        function g = get.table1vnames(~)
+            g = {'thickness_mean' 'thickness_std' 'oefr_mean' 'oefr_std' 'oefr_max' 'age_mean' 'age_std' 'sex_male' 'sex_female' 'tau_mean' 'tau_std'};
+        end
+        function g = get.table1rnames(~)
+            g = {'total' 'white' 'black'  'asian' 'ais' 'tia' 'hemm' 'other' 'unilateral' 'bilateral' ...
+                'lesionCortical' 'lesionWM' 'lesionBG' 'tx'};
+        end
+        function g = get.total(this)
+            g = true(size(this.white));
+        end
+        function g = get.white(this)
+            g = ~this.black & ~this.asian;
+        end
+        function g = get.black(this)
+            %idx  1             5               10               15                 20              25               30
+            g = [ 0  0   0   0  0  0  1   0  1  1   0  0  0  0   0   1   0   0  0   0  0  0  0  0   0   0  0  0   0  1  1  0   0  0  0 ];
+            g = logical(g);
+        end
+        function g = get.asian(this)
+            %idx  1             5               10               15                 20              25               30
+            g = [ 0  0   0   0  0  1  0   0  0  0   0  0  0  0   0   0   0   0  0   0  0  0  0  0   0   0  0  0   0  0  0  0   0  0  0 ];
+            g = logical(g);
+        end
+        function g = get.ais(this)
+            %idx  1             5               10               15                 20              25               30
+            g = [ 1  1   1   0  0  0  0   0  0  1   1  0  1  1   0   1   1   0  0   0  0  0  0  1   0   0  0  0   0  0  0  0   1  0  0 ];
+            g = logical(g);
+        end
+        function g = get.tia(this)
+            %idx  1             5               10               15                 20              25               30
+            g = [ 0  0   0   0  1  1  0   0  0  0   0  1  0  0   0   0   0   1  0   0  0  0  0  0   1   1  0  1   1  1  1  1   0  0  0 ];
+            g = logical(g);
+        end
+        function g = get.hemm(this)
+            %idx  1             5               10               15                 20              25               30
+            g = [ 0  0   0   0  0  0  1   0  1  0   0  0  0  0   1   0   0   0  1   0  0  0  0  0   0   0  1  0   0  0  0  0   0  0  0 ];
+            g = logical(g);
+        end
+        function g = get.other(this)
+            g = ~this.ais & ~this.tia & ~this.hemm;
+        end
+        function g = get.unilateral(this)
+            % idx 1             5               10               15                 20              25               30
+            g = [ 0  0   0   0  0  1  0   1  0  0   0  0  1  0   0   0   0   0  0   1  1  1  0  0   1   0  1  0   0  0  1  0   0  1  0 ];
+            g = logical(g);
+        end
+        function g = get.bilateral(this)
+            g = ~this.unilateral;
+        end
+        function g = get.lesionCortical(this)   
+            % idx 1             5               10               15                 20              25               30
+            g = { '' 'L' 'R' '' '' '' ''  '' '' 'L' '' '' '' 'L' ''  'L' 'L' '' ''  '' '' '' '' 'L' ''  '' '' 'R' '' '' '' ''  'L' '' '' };
+        end
+        function g = get.lesionWM(this)
+            % idx 1              5               10                 15                 20              25               30
+            g = { 'R' ''  ''  '' '' '' ''  '' '' ''  'R' '' 'L' ''  ''  ''  ''  '' ''  '' '' '' '' ''  ''  '' '' ''  '' '' '' 'B'  '' '' '' };
+        end
+        function g = get.lesionBG(this)
+            % idx 1             5               10               15                 20              25               30
+            g = { '' ''  ''  '' '' '' 'R' '' '' ''  '' '' '' ''  'R' ''  ''  '' 'L' '' '' '' '' ''  ''  '' '' ''  '' '' '' ''  '' '' '' };
+        end
+        function g = get.tx(this)
+            % idx 1             5               10               15                 20              25               30
+            g = { '' ''  ''  '' '' '' ''  '' '' '' 'R' '' '' ''  ''  ''  ''  '' 'L' '' '' '' '' ''  'R' '' '' ''  '' '' '' ''  '' '' '' };
         end
     end
 
@@ -270,7 +378,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
         end       
         function [x,y,ids,sess] = plotOefratio2Dsa(terr)
             this = mlanalysis.MoyamoyaPaper('Parameter', 'thickness', 'Territory', terr);
-            [oefratio,ids_,sess_] = this.cohortOefratio;
+            [oefratio,ids_,sess_] = this.cohortOefratio; %#ok<*ASGLU>
             [dsa,ids,sess]        = this.cohortDsa;
 
             oefratioSubject  = cellfun(@mean, oefratio)';
@@ -307,16 +415,16 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             thSubject = cellfun(@mean, th)';            
             load(this.age_filename);
             
-            this.plot(ageAtPresentation, thSubject, this.territory);
-            cftool(ageAtPresentation, thSubject);
-            x = ageAtPresentation;
+            this.plot(ageAtImaging, thSubject, this.territory);
+            cftool(ageAtImaging, thSubject);
+            x = ageAtImaging;
             y = thSubject;
             
 %             Nids = length(ids);
 %             Nsess = length(sess);
-%             ageAtPresentationLarge = nan(Nids*Nsess,1);
+%             ageAtImagingLarge = nan(Nids*Nsess,1);
 %             for d = 1:Nsess
-%                 ageAtPresentationLarge((d-1)*Nids+1:d*Nids) = ageAtPresentation(d); 
+%                 ageAtImagingLarge((d-1)*Nids+1:d*Nids) = ageAtImaging(d); 
 %             end
         end       
         function [x,y] = plotSex2Thickness(terr) 
@@ -366,12 +474,16 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             
             ip = inputParser;
             ip.KeepUnmatched = true;
+            addParameter(ip, 'Territory', 'mca_max', @(x) lstrfind(x, mlsurfer.Parcellations.TERRITORIES));
             addParameter(ip, 'exclusionLabel', this.exclusionLabel, @ischar);
             addParameter(ip, 'modelLabel', this.modelLabel, @ischar);
+            addParameter(ip, 'doplot', this.doplot, @islogical);
             parse(ip, varargin{:});
-            
+            this.territory = ip.Results.Territory;
             this.exclusionLabel = ip.Results.exclusionLabel;
             this.modelLabel = ip.Results.modelLabel;
+            this.doplot = ip.Results.doplot;
+            cd(this.subjectsDir);
         end
         
         function plot(~, X1, Y1, varargin)
@@ -509,14 +621,15 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             % "Show equations" was selected
             this.showEquations(fittypesArray1, coeffs1, 3, axes1);
         end
-        function scatter(~, X1, Y1, varargin)
+        function scatter(this, X1, Y1, varargin)
             
             ip = inputParser;
             addRequired(ip, 'X1', @isnumeric);
             addRequired(ip, 'Y1', @isnumeric);
             addParameter(ip, 'terr', '', @ischar);
             addParameter(ip, 'category', []);
-            addParameter(ip, 'response', 'Thickness (mm)');
+            addParameter(ip, 'predictor', 'OEF Ratio');
+            addParameter(ip, 'xlim', 'auto', @(x) isnumeric(x) | ischar(x));
             parse(ip, X1, Y1, varargin{:});
             
             %% PLOT(X1, Y1, territory)
@@ -536,29 +649,29 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             % Create plot
             if (~isempty(ip.Results.category))
                 scatter(X1,Y1,8,ip.Results.category, 'filled');
-                colorbar; %('TickLabels', {'3' '6' '9' '12' '15' '18' '21' '24' '27' '30'});
+                if (this.showColorbar)
+                    colorbar; %('TickLabels', {'3' '6' '9' '12' '15' '18' '21' '24' '27' '30'});
+                end
             else
                 plot(X1,Y1,'MarkerSize',8,'Marker','.','LineStyle','none');
             end
-
-            % Create xlabel
-            xlabel('OEF Ratio','FontSize',16,'FontWeight','bold');
-
-            % Create ylabel
-            ylabel(ip.Results.response,'FontSize',16,'FontWeight','bold');
+            xlim(ip.Results.xlim);
+            xlabel(ip.Results.predictor,'FontSize',16,'FontWeight','bold');
+            ylabel('Thickness (mm)','FontSize',16,'FontWeight','bold');
 
             % Create title
             %title(sprintf('30 patients, %s territory', ip.Results.terr), 'FontSize',16);
         end    
-        function scatter2(~, X1, Y1, varargin)
+        function scatter2(this, X1, Y1, varargin)
             
             ip = inputParser;
             addRequired(ip, 'X1', @isnumeric);
             addRequired(ip, 'Y1', @isnumeric);
             addParameter(ip, 'terr', '', @ischar);
             addParameter(ip, 'category', []);
-            addParameter(ip, 'response', 'Thickness (mm)');
+            addParameter(ip, 'predictor', 'OEF Ratio');
             addParameter(ip, 'size', 200, @isnumeric);
+            addParameter(ip, 'xlim', 'auto', @(x) isnumeric(x) | ischar(x));
             parse(ip, X1, Y1, varargin{:});
             
             %% PLOT(X1, Y1, territory)
@@ -578,16 +691,15 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             % Create plot
             if (~isempty(ip.Results.category))
                 scatter(X1,Y1,ip.Results.size,ip.Results.category);
-                colorbar; %('TickLabels', {'3' '6' '9' '12' '15' '18' '21' '24' '27' '30'});
+                if (this.showColorbar)
+                    colorbar; %('TickLabels', {'3' '6' '9' '12' '15' '18' '21' '24' '27' '30'});
+                end
             else
                 plot(X1,Y1,'MarkerSize',8,'Marker','.','LineStyle','none');
             end
-
-            % Create xlabel
-            xlabel('OEF Ratio', 'FontSize',16,'FontWeight','bold');
-
-            % Create ylabel
-            ylabel(ip.Results.response,'FontSize',16,'FontWeight','bold');
+            xlim(ip.Results.xlim);
+            xlabel(ip.Results.predictor,'FontSize',16,'FontWeight','bold');
+            ylabel('Thickness (mm)','FontSize',16,'FontWeight','bold');
 
             % Create title
             %title(sprintf('30 patients, %s territory', ip.Results.terr), 'FontSize',16);
@@ -619,7 +731,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                         'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
                         'territory', terrs{t}, ...
                         'statistic', this.statistic);
-                    cStr(s) = s2IC.category; %#ok<AGROW>
+                    cStr(s) = s2IC.category; 
 
                     len = max(length(cStr(s).ids{1}), length(cStr(s).ids{2}));                
                     for h = 1:2
@@ -627,7 +739,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                             ids_ = cStr(s).ids{h};
                             for iparc = 1:len
                                 if (cStr(s).map.isKey(ids_(iparc)))
-                                    cVec = [cVec t]; %#ok<AGROW>
+                                    cVec = [cVec t]; 
                                 end
                             end
                         end
@@ -650,7 +762,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                     'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
                     'territory', this.territory, ...
                     'statistic', this.statistic);
-                cStr(s) = s2IC.category; %#ok<AGROW>
+                cStr(s) = s2IC.category; 
                 
                 len = max(length(cStr(s).ids{1}), length(cStr(s).ids{2}));                
                 for h = 1:2
@@ -658,7 +770,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                         ids_ = cStr(s).ids{h};
                         for iparc = 1:len
                             if (cStr(s).map.isKey(ids_(iparc)))
-                                cVec = [cVec s]; %#ok<AGROW>
+                                cVec = [cVec s]; 
                             end
                         end
                     end
@@ -684,7 +796,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                     'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
                     'territory', this.territory, ...
                     'statistic', this.statistic);                
-                oefStr(s) = s2IC.oefIndex(varargin{:});  %#ok<AGROW>
+                oefStr(s) = s2IC.oefIndex(varargin{:});
                 
                 for h = 1:2
                     if (~strcmp(this.exclusions{s}, this.theHemis{h}))
@@ -692,10 +804,10 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                         parcVec = [];
                         for iparc = 1:length(ids_)
                             if (oefStr(s).map.isKey(ids_(iparc)))
-                                parcVec = [parcVec oefStr(s).map(ids_(iparc))]; %#ok<AGROW>
+                                parcVec = [parcVec oefStr(s).map(ids_(iparc))];
                             end
                         end
-                        oefVec = [oefVec parcVec]; %#ok<AGROW>
+                        oefVec = [oefVec parcVec];
                     end
                     stats{s,h} = struct('mean',mean(parcVec), 'std', std(parcVec), 'max', max(parcVec));
                     this.statsPrintf(stats{s,h}, s, h);
@@ -723,14 +835,14 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                     'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
                     'territory', this.territory, ...
                     'statistic', this.statistic);
-                tdStr(s) = s2IC.thicknessDiff; %#ok<AGROW>
+                tdStr(s) = s2IC.thicknessDiff; 
                 
                 for h = 1:2
                     if (~strcmp(this.exclusions{s}, this.theHemis{h}))
                         ids_ = tdStr(s).ids{h};
                         for iparc = 1:length(ids_)
                             if (tdStr(s).map.isKey(ids_(iparc)))
-                                tdVec = [tdVec tdStr(s).map(ids_(iparc))]; %#ok<AGROW>
+                                tdVec = [tdVec tdStr(s).map(ids_(iparc))]; 
                             end
                         end
                     end
@@ -756,7 +868,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                     'aparcAseg', 'aparc.a2009s+aseg.mgz', ...
                     'territory', this.territory, ...
                     'statistic', this.statistic);
-                tStr(s) = s2IC.thickness; %#ok<AGROW>
+                tStr(s) = s2IC.thickness; 
                 
                 for h = 1:2
                     if (~strcmp(this.exclusions{s}, this.theHemis{h}))
@@ -764,10 +876,10 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                         parcVec = [];
                         for iparc = 1:length(ids_)
                             if (tStr(s).map.isKey(ids_(iparc)))
-                                parcVec = [parcVec tStr(s).map(ids_(iparc))]; %#ok<AGROW>
+                                parcVec = [parcVec tStr(s).map(ids_(iparc))]; 
                             end
                         end
-                        tVec = [tVec parcVec]; %#ok<AGROW>
+                        tVec = [tVec parcVec];
                     end
                     stats{s,h} = struct('mean', mean(parcVec), 'std', std(parcVec));
                     %this.statsPrintf(stats{s,h}, s, h);
@@ -796,12 +908,12 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                     
                     for lft = 1:length(pStr.ids{1})
                         if (pStr.map.isKey(pStr.ids{1}(lft)))
-                            tiVec = [tiVec pStr.map(pStr.ids{1}(lft))]; %#ok<AGROW>
+                            tiVec = [tiVec pStr.map(pStr.ids{1}(lft))]; 
                         end
                     end
                     for rgt = 1:length(pStr.ids{2})
                         if (pStr.map.isKey(pStr.ids{2}(rgt)))
-                            tiVec = [tiVec pStr.map(pStr.ids{2}(rgt))]; %#ok<AGROW>
+                            tiVec = [tiVec pStr.map(pStr.ids{2}(rgt))]; 
                         end
                     end
                 end
@@ -826,12 +938,12 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                     
                     for lft = 1:length(pStr.ids{1})
                         if (pStr.map.isKey(pStr.ids{1}(lft)))
-                            pVec = [pVec pStr.map(pStr.ids{1}(lft))]; %#ok<AGROW>
+                            pVec = [pVec pStr.map(pStr.ids{1}(lft))]; 
                         end
                     end
                     for rgt = 1:length(pStr.ids{2})
                         if (pStr.map.isKey(pStr.ids{2}(rgt)))
-                            pVec = [pVec pStr.map(pStr.ids{2}(rgt))]; %#ok<AGROW>
+                            pVec = [pVec pStr.map(pStr.ids{2}(rgt))]; 
                         end
                     end
                 end
@@ -841,12 +953,68 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             popd(pwd0);
         end
         
-        function fitglmeOefIndex2Thickness(this)
+        function T = createTable1(this, varargin)
+            ip = inputParser;
+            ip.KeepUnmatched = true;
+            addParameter(ip, 'fileprefix', 'createTable1', @ischar);
+            parse(ip, varargin{:});
+            
+            fp = sprintf('%s_%s_%s', ...
+                ip.Results.fileprefix, this.territory, this.exclusionLabel);
+            deleteExisting([fp '.log']);
+            diary([fp '.log']);
+            d = this.loadDataForTable1;
+            T = table( ...
+                d.thickness_mean', d.thickness_std', d.oefr_mean', d.oefr_std', d.oefr_max', d.age_mean', d.age_std', d.sex_male', d.sex_female', d.tau_mean', d.tau_std', ...
+                'VariableNames', this.table1vnames, 'RowNames', this.table1rnames);        
+            disp(T);
+            writetable(T, [fp '.xlsx']);
+            save([fp '.mat']); 
+            diary off             
+        end
+        function fitGlme(this, varargin)
+            ip = inputParser;
+            addParameter(ip, 'fileprefix', 'fitGlme', @ischar);
+            addParameter(ip, 'modelLabel', this.modelLabel, @ischar);
+            addParameter(ip, 'graining', 'Destrieux', @(x) lstrfind(x, {'Destrieux' 'hemisphere' 'patient'}));
+            parse(ip, varargin{:});
+            this.modelLabel = ip.Results.modelLabel;
+            
+            fp = sprintf('%s_%s_%s_%s_%s', ...
+                ip.Results.fileprefix, ip.Results.graining, this.territory, this.exclusionLabel, this.modelLabel);
+            deleteExisting([fp '.log']);
+            diary([fp '.log']);
+            d = this.loadData(ip.Results.graining);
+            
+            this.scatterData(d, ip.Results.graining);   
+            this.partialCorrData(d);
+            glme = fitglme(this.tableGlme(d), this.model, 'Link', this.link, 'Distribution', this.distrib, 'CheckHessian', true, 'CovarianceMethod', 'JointHessian', 'Verbose', 1)            
+            [psi,dispersion,statsCP] = covarianceParameters(glme);
+            for s = 1:length(psi)
+                disp(psi{s})
+            end
+            disp(dispersion);
+            for s = 1:length(statsCP)
+                disp(statsCP{s})
+            end
+            [~,~,statsFE] = fixedEffects(glme)
+            [~,~,statsRE] = randomEffects(glme)            
+            if (this.doplot)
+                figure;
+                plotResiduals(glme, 'fitted', 'ResidualType', 'Pearson')
+            end            
+            save([fp '.mat']); 
+            diary off 
+        end
+        function fitglmeReviewer(this)
             % plot freesurfer regions ~3036
             
-            diaryFile = sprintf('fitglmeOefIndex2Thickness_glme_%s_%s_%s.log', ...
+            %% fitglme
+            
+            fp = sprintf('fitglmeReviewer_glme_%s_%s_%s', ...
                 this.territory, this.exclusionLabel, this.modelLabel);
-            deleteExisting(diaryFile);
+            deleteExisting([fp '.log']);
+            diary([fp '.log']); 
             
             load(this.oefMat, 'oefStr', 'oefVec');
             load(this.tMat, 'tStr', 'tVec');
@@ -855,40 +1023,57 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             else
                 cVec = this.categories;
             end
-            load(this.age_filename, 'ageAtPresentation');
+            load(this.age_filename, 'ageAtImaging');
             load(this.sex_filename, 'subjectsSex');
-            subjectsSex = double(strcmp('Male', subjectsSex));            
+            load(this.tau_filename, 'timeFromPresentationToImaging');
+            subjectsSex = double(strcmp('Female', subjectsSex)); %#ok<*NODEF>
             age = [];
             sex = [];
+            tau = [];
             for s = 1:length(this.sessions)   
                 for h = 1:2
                     if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        age = [age repelem(ageAtPresentation(s), length(oefStr(s).map.keys))];
-                        sex = [sex repelem(subjectsSex(s),       length(oefStr(s).map.keys))];
+                        age = [age repelem(ageAtImaging(s),              length(oefStr(s).map.keys))]; %#ok<*AGROW>
+                        sex = [sex repelem(subjectsSex(s),                    length(oefStr(s).map.keys))];
+                        tau = [tau repelem(timeFromPresentationToImaging(s),  length(oefStr(s).map.keys))];
                     end
                 end
             end
             
-            rng     = 0.7 < oefVec & oefVec ~= 1 & oefVec < 1.5;
-            fprintf('fitglmeOefIndex2ThicknessDiff:  discarding %g regions\n', length(oefVec) - sum(rng)); 
-            fprintf('fitglmeOefIndex2ThicknessDiff:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); 
+            rng     = this.OEF_MIN < oefVec & oefVec ~= 1 & oefVec < this.OEF_MAX;
+            fprintf('fitglmeReviewer:  discarding %g regions\n', length(oefVec) - sum(rng)); 
+            fprintf('fitglmeReviewer:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); 
             oefVec2 = oefVec(rng)';
             tVec2   = tVec(rng)';
             cVec2   = cVec(rng)';
             age     = age(rng)'; 
             sex     = sex(rng)';
+            tau     = tau(rng)';
             assert(length(oefVec2) == length(tVec2));
             assert(length(tVec2)   == length(cVec2));
             assert(length(cVec2)   == length(age));
             assert(length(age)     == length(sex));
-            this.scatter(oefVec2, tVec2, 'category', cVec2, 'response', 'Thickness (mm)');  
-            this.scatter(oefVec2, age,   'category', cVec2, 'response', 'Age (years)');  
-            this.scatter(oefVec2, sex,   'category', cVec2, 'response', 'Sex');    
-            tbl     = table(oefVec2, age, sex, num2str(cVec2), tVec2);
-            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            assert(length(sex)     == length(tau));
+            
+            if (this.doplot)
+                this.scatter(oefVec2, tVec2, 'category', cVec2, 'predictor', 'OEFR');  
+                this.scatter(age, tVec2,     'category', cVec2, 'predictor', 'Age (years)');  
+                this.scatter(sex, tVec2,     'category', cVec2, 'predictor', 'Sex');  
+                this.scatter(tau, tVec2,     'category', cVec2, 'predictor', 'Onset to Scan (months)');    
+            end
+            
+            %%
+            
+            rho     = array2table( ...
+                partialcorr([oefVec2, age, sex, tau, tVec2]), ...
+                'VariableNames', {'oef' 'age' 'sex' 'tau' 'thickd'}, ...
+                'RowNames', {'oef' 'age' 'sex' 'tau' 'thickd'});
+            disp('Partial Correlation Coefficients');
+            disp(rho);
+            tbl     = table(oefVec2, age, sex, tau, num2str(cVec2), tVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'tau' 'subj' 'thickd'};
             summary(tbl)
-            glme    = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)
-            %'thickd ~ 1 + age + sex + oef + (1 + oef|subj)'
+            glme    = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib) %#ok<*NOPRT>
             [psi,dispersion,statsCP] = covarianceParameters(glme);
             for s = 1:length(psi)
                 disp(psi{s})
@@ -899,32 +1084,38 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             end
             [~,~,statsFE] = fixedEffects(glme)
             [~,~,statsRE] = randomEffects(glme)
-            figure;
-            plotResiduals(glme, 'fitted', 'ResidualType', 'Pearson')
-            save(sprintf('fitglmeOefIndex2Thickness_glme_%s_%s_%s.mat', ...
-                this.territory, this.exclusionLabel, this.modelLabel)); 
+            if (this.doplot)
+                figure;
+                plotResiduals(glme, 'fitted', 'ResidualType', 'Pearson')
+            end            
+            save([fp '.mat']); 
             diary off
-        end 
-        function fitglmeOefIndex2Thickness2(this)
+        end
+        function fitglmeReviewer2(this)
             % plot hemispheres ~51
             
-            diaryFile = sprintf('fitglmeOefIndex2Thickness2_glme2_%s_%s_%s.log', ...
+            %% fitglme
+            
+            fp = sprintf('fitglmeReviewer2_glme_%s_%s_%s', ...
                 this.territory, this.exclusionLabel, this.modelLabel);
-            deleteExisting(diaryFile);
-            diary(diaryFile); 
+            deleteExisting([fp '.log']);
+            diary([fp '.log']); 
             
             load(this.oefMat, 'oefStr', 'oefVec');
             load(this.tMat, 'tStr', 'tVec');
-            load(this.age_filename, 'ageAtPresentation');
+            load(this.age_filename, 'ageAtImaging');
             load(this.sex_filename, 'subjectsSex');
-            subjectsSex = double(strcmp('Male', subjectsSex));
+            load(this.tau_filename, 'timeFromPresentationToImaging');
+            subjectsSex = double(strcmp('Female', subjectsSex));
             age = [];
             sex = [];
+            tau = [];
             for s = 1:length(this.sessions)   
                 for h = 1:2
                     if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        age = [age ageAtPresentation(s)];
+                        age = [age ageAtImaging(s)];
                         sex = [sex subjectsSex(s)];
+                        tau = [tau timeFromPresentationToImaging(s)];
                     end
                 end
             end
@@ -946,28 +1137,43 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                 end
             end
             writetable(table(this.sessions', tVec_{1}', oefVec_{1}', tVec_{2}', oefVec_{2}'), ...
-                sprintf('fitglmeOefIndex2Thickness2_%s_%s.xlsx', this.territory, this.exclusionLabel));
+                sprintf('fitglmeReviewer2_%s_%s.xlsx', this.territory, this.exclusionLabel));
             
-            rng     = 0.7 < oefVec2 & oefVec2 < 1.6;
-            %fprintf('fitglmeOefIndex2Thickness2:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
-            %fprintf('fitglmeOefIndex2Thickness2:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
+            rng     = this.OEF_MIN < oefVec2 & oefVec2 < this.OEF_MAX;
+            %fprintf('fitglmeReviewer2:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
+            %fprintf('fitglmeReviewer2:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
             oefVec2 = oefVec2(rng)';
             tVec2   = tVec2(rng)';
             cVec2   = cVec2(rng)';
             age     = age(rng)';
             sex     = sex(rng)';
+            tau     = tau(rng)';
             assert(length(oefVec2) == length(tVec2));
             assert(length(tVec2)   == length(cVec2));
             assert(length(cVec2)   == length(age));
             assert(length(age)     == length(sex));
-            this.scatter2(oefVec2, tVec2, 'category', cVec2, 'size', 200, 'response', 'Thickness (mm)'); 
-            this.scatter2(oefVec2, age,   'category', cVec2, 'size', 200, 'response', 'Age (years)');  
-            this.scatter2(oefVec2, sex,   'category', cVec2, 'size', 200, 'response', 'Sex');    
-            tbl     = table(oefVec2, age, sex, cVec2, tVec2);
-            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            assert(length(sex)     == length(tau));
+            
+            if (this.doplot)
+                this.scatter2(oefVec2, tVec2, 'category', cVec2, 'size', 200, 'predictor', 'OEFR'); 
+                this.scatter2(age, tVec2,     'category', cVec2, 'size', 200, 'predictor', 'Age (years)');  
+                this.scatter2(sex, tVec2,     'category', cVec2, 'size', 200, 'predictor', 'Sex');  
+                this.scatter2(tau, tVec2,     'category', cVec2, 'size', 200, 'predictor', 'Onset to Scan (months)');   
+            end
+            
+            %%
+                        
+            rho     = array2table( ...
+                partialcorr([oefVec2, age, sex, tau, tVec2]), ...
+                'VariableNames', {'oef' 'age' 'sex' 'tau' 'thickd'}, ...
+                'RowNames', {'oef' 'age' 'sex' 'tau' 'thickd'});
+            disp('Partial Correlation Coefficients');
+            disp(rho);
+            tbl     = table(oefVec2, age, sex, tau, cVec2, tVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'tau' 'subj' 'thickd'};
             summary(tbl)            
-            glme2   = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)            
-            [psi,dispersion,statsCP] = covarianceParameters(glme2);
+            glme    = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)            
+            [psi,dispersion,statsCP] = covarianceParameters(glme);
             for s = 1:length(psi)
                 disp(psi{s})
             end
@@ -975,32 +1181,38 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             for s = 1:length(statsCP)
                 disp(statsCP{s})
             end
-            [~,~,statsFE] = fixedEffects(glme2)
-            [~,~,statsRE] = randomEffects(glme2)
-            %figure;
-            %plotResiduals(glme2, 'fitted', 'ResidualType', 'Pearson')
-            save(sprintf('fitglmeOefIndex2Thickness2_glme2_%s_%s_%s.mat', ...
-                this.territory, this.exclusionLabel, this.modelLabel)); 
+            [~,~,statsFE] = fixedEffects(glme)
+            [~,~,statsRE] = randomEffects(glme)
+            if (this.doplot)
+                figure;
+                plotResiduals(glme, 'fitted', 'ResidualType', 'Pearson')
+            end
+            save([fp '.mat']); 
             diary off
-        end   
-        function fitglmeOefIndex2Thickness3(this)
+        end 
+        function fitglmeReviewer3(this)
             % plot patients ~30
             
-            diaryFile = sprintf('fitglmeOefIndex2Thickness3_glme3_%s_%s_%s.log', ...
+            %% fitglme
+            
+            fp = sprintf('fitglmeReviewer3_glme_%s_%s_%s', ...
                 this.territory, this.exclusionLabel, this.modelLabel);
-            deleteExisting(diaryFile);
-            diary(diaryFile); 
+            deleteExisting([fp '.log']);
+            diary([fp '.log']); 
             
             load(this.oefMat, 'oefStr', 'oefVec');
             load(this.tMat, 'tStr', 'tVec');
-            load(this.age_filename, 'ageAtPresentation');
+            load(this.age_filename, 'ageAtImaging');
             load(this.sex_filename, 'subjectsSex');
-            subjectsSex = double(strcmp('Male', subjectsSex));
+            load(this.tau_filename, 'timeFromPresentationToImaging');
+            subjectsSex = double(strcmp('Female', subjectsSex));
             age = [];
             sex = [];
+            tau = [];
             for s = 1:length(this.sessions)   
-                age = [age ageAtPresentation(s)];
+                age = [age ageAtImaging(s)];
                 sex = [sex subjectsSex(s)];
+                tau = [tau timeFromPresentationToImaging(s)];
             end
             
             oefVec2 = [];
@@ -1020,28 +1232,43 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                 cVec2   = [  cVec2             s];
             end
             writetable(table(this.sessions', tVec2', oefVec2'), ...
-                sprintf('fitglmeOefIndex2Thickness3_%s_%s.xlsx', this.territory, this.exclusionLabel));
+                sprintf('fitglmeReviewer3_%s_%s.xlsx', this.territory, this.exclusionLabel));
             
             %rng     = 0.7 < oefVec2 & oefVec2 < 1.6;
-            %fprintf('fitglmeOefIndex2Thickness3:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
-            %fprintf('fitglmeOefIndex2Thickness3:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
+            %fprintf('fitglmeReviewer3:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
+            %fprintf('fitglmeReviewer3:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
             oefVec2 = oefVec2';
             tVec2   = tVec2';
             cVec2   = cVec2';
             age     = age';
             sex     = sex';
+            tau     = tau';
             assert(length(oefVec2) == length(tVec2));
             assert(length(tVec2)   == length(cVec2));
             assert(length(cVec2)   == length(age));
             assert(length(age)     == length(sex));
-            this.scatter2(oefVec2, tVec2, 'category', cVec2, 'size', 200, 'response', 'Thickness (mm)'); 
-            this.scatter2(oefVec2, age,   'category', cVec2, 'size', 200, 'response', 'Age (years)');  
-            this.scatter2(oefVec2, sex,   'category', cVec2, 'size', 200, 'response', 'Sex'); 
-            tbl     = table(oefVec2, age, sex, cVec2, tVec2);
-            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
+            assert(length(sex)     == length(tau));
+            
+            if (this.doplot)
+                this.scatter2(oefVec2, tVec2, 'category', cVec2, 'size', 200, 'predictor', 'OEFR'); 
+                this.scatter2(age, tVec2,     'category', cVec2, 'size', 200, 'predictor', 'Age (years)');  
+                this.scatter2(sex, tVec2,     'category', cVec2, 'size', 200, 'predictor', 'Sex'); 
+                this.scatter2(tau, tVec2,     'category', cVec2, 'size', 200, 'predictor', 'Onset to Scan (months)'); 
+            end
+            
+            %%            
+            
+            rho     = array2table( ...
+                partialcorr([oefVec2, age, sex, tau, tVec2]), ...
+                'VariableNames', {'oef' 'age' 'sex' 'tau' 'thickd'}, ...
+                'RowNames', {'oef' 'age' 'sex' 'tau' 'thickd'});
+            disp('Partial Correlation Coefficients');
+            disp(rho);
+            tbl     = table(oefVec2, age, sex, tau, cVec2, tVec2);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'tau' 'subj' 'thickd'};
             summary(tbl)            
-            glme2   = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)            
-            [psi,dispersion,statsCP] = covarianceParameters(glme2);
+            glme    = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)            
+            [psi,dispersion,statsCP] = covarianceParameters(glme);
             for s = 1:length(psi)
                 disp(psi{s})
             end
@@ -1049,317 +1276,15 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
             for s = 1:length(statsCP)
                 disp(statsCP{s})
             end
-            [~,~,statsFE] = fixedEffects(glme2)
-            [~,~,statsRE] = randomEffects(glme2)
-            %figure;
-            %plotResiduals(glme2, 'fitted', 'ResidualType', 'Pearson')
-            save(sprintf('fitglmeOefIndex2Thickness3_glme3_%s_%s_%s.mat', ...
-                this.territory, this.exclusionLabel, this.modelLabel)); 
-            diary off
-        end   
-        function fitglmOefIndex2Thickness2(this)
-            % plot hemispheres ~51
-            
-            diary(sprintf('fitglmOefIndex2Thickness2_glm2_%s_%s_%s.log', ...
-                this.territory, this.exclusionLabel, this.modelLabel)); 
-            
-            load(this.oefMat, 'oefStr', 'oefVec');
-            load(this.tMat, 'tStr', 'tVec');
-            load(this.age_filename, 'ageAtPresentation');
-            load(this.sex_filename, 'subjectsSex');
-            subjectsSex = double(strcmp('Male', subjectsSex));
-            age = [];
-            sex = [];
-            for s = 1:length(this.sessions)   
-                for h = 1:2
-                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        age = [age repelem(ageAtPresentation(s), 2)];
-                        sex = [sex repelem(subjectsSex(s),       2)];
-                    end
-                end
-            end
-            
-            oefVec2 = [];
-            tVec2   = [];
-            cVec2   = [];
-            oefVec_ = {[] []};
-            tVec_   = {[] []};
-            for s = 1:length(this.sessions)
-                for h = 1:2
-                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        oefVec2 = [oefVec2 oefStr(s).mapsHemis{h}];
-                        tVec2   = [  tVec2   tStr(s).mapsHemis{h}];
-                        cVec2   = [  cVec2        s];
-                    end
-                    oefVec_{h} = [oefVec_{h} oefStr(s).mapsHemis{h}];
-                    tVec_{h}  = [tVec_{h}    tStr(s).mapsHemis{h}];
-                end
-            end
-            writetable(table(this.sessions', tVec_{1}', oefVec_{1}', tVec_{2}', oefVec_{2}'), ...
-                sprintf('fitglmeOefIndex2Thickness2_%s_%s.xlsx', this.territory, this.exclusionLabel));
-            
-            rng     = 0.7 < oefVec2 & oefVec2 < 1.6;
-            fprintf('fitglmeOefIndex2ThicknessDiff2:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
-            fprintf('fitglmeOefIndex2ThicknessDiff2:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
-            oefVec2 = oefVec2(rng)';
-            tVec2   = tVec2(rng)';
-            cVec2   = cVec2(rng)';
-            age     = age(rng)';
-            sex     = sex(rng)';
-            assert(length(oefVec2) == length(tVec2));
-            assert(length(tVec2)   == length(cVec2));
-            assert(length(cVec2)   == length(age));
-            assert(length(age)     == length(sex));
-            this.scatter2(oefVec2, tVec2, 'category', cVec2, 'size', 200);  
-            this.scatter2(age,     tVec2, 'category', cVec2, 'size', 200);  
-            %tbl     = table(oefVec2, age, sex, tVec2);
-            %tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'thickd'};
-            tbl     = table(oefVec2, age, tVec2);
-            tbl.Properties.VariableNames = {'oef' 'age' 'thickd'};
-            summary(tbl)            
-            glm2    = fitglm(tbl, 'linear')            
-            coefCI(glm2)
-            %plotDiagnostics(glm2, 'leverage')
-            
-            
-            save(sprintf('fitglmOefIndex2Thickness2_glm2_%s_%s_%s.mat', ...
-                this.territory, this.exclusionLabel, this.modelLabel)); 
-            diary off
-        end   
-        function fitglmeOefIndex2ThicknessDiff(this)
-            % plot freesurfer regions ~2958
-            load(this.oefMat, 'oef*');
-            load(this.tdMat, 't*');
-            if (lexist(this.cMat, 'file'))
-                load(this.cMat, 'c*');
-            else
-                cVec = this.categories;
-            end
-            load(this.age_filename, 'ageAtPresentation');
-            load(this.sex_filename, 'subjectsSex');
-            subjectsSex = double(strcmp('Male', subjectsSex));            
-            age = [];
-            sex = [];
-            for s = 1:length(this.sessions)   
-                for h = 1:2            
-                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        age = [age repelem(ageAtPresentation(s), length(oefStr(s).map.keys))];
-                        sex = [sex repelem(subjectsSex(s),       length(oefStr(s).map.keys))];
-                    end
-                end
-            end
-            
-            rng    = 0.5 < oefVec & oefVec ~= 1 & oefVec < 1.5;
-            fprintf('fitglmeOefIndex2ThicknessDiff:  discarding %g regions\n', length(oefVec) - sum(rng)); % 13
-            fprintf('fitglmeOefIndex2ThicknessDiff:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); % 0.00431034
-            oefVec2 = oefVec(rng)';
-            tdVec2  = tdVec(rng)';
-            cVec2   = cVec(rng)';
-            age     = age(rng)'; 
-            sex     = sex(rng)';
-            assert(length(oefVec2) == length(tdVec2));
-            assert(length(tdVec2)  == length(cVec2));
-            assert(length(cVec2)   == length(age));
-            assert(length(age)     == length(sex));
-            this.scatter(oefVec2, tdVec2, 'category', cVec2);    
-            tbl     = table(oefVec2, age, sex, cVec2, tdVec2);
-            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
-            summary(tbl)
-            glme    = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)
-            [psi,dispersion,statsCP] = covarianceParameters(glme)
             [~,~,statsFE] = fixedEffects(glme)
-            [~,~,statsRE] = randomEffects(glme)
-            figure;
-            plotResiduals(glme, 'fitted', 'ResidualType', 'Pearson')
-            save(sprintf('fitglmeOefIndex2ThicknessDiff_glme_%s_%s.mat', this.territory, this.exclusionLabel));         
-        end   
-        function fitglmeOefIndex2ThicknessDiff2(this)
-            % plot hemispheres ~51
-            
-            load(this.oefMat, 'oef*');
-            load(this.tdMat, 't*');
-            load(this.age_filename, 'ageAtPresentation');
-            load(this.sex_filename, 'subjectsSex');
-            subjectsSex = double(strcmp('Male', subjectsSex));
-            age = [];
-            sex = [];
-            for s = 1:length(this.sessions)   
-                for h = 1:2
-                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        age = [age repelem(ageAtPresentation(s), 2)];
-                        sex = [sex repelem(subjectsSex(s),       2)];
-                    end
-                end
+            [~,~,statsRE] = randomEffects(glme)            
+            if (this.doplot)
+                figure;
+                plotResiduals(glme, 'fitted', 'ResidualType', 'Pearson')
             end
-            
-            oefVec2 = [];
-            tdVec2  = [];
-            cVec2   = [];
-            oefVec_ = {[] []};
-            tdVec_   = {[] []};
-            for s = 1:length(this.sessions)
-                for h = 1:2
-                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        oefVec2 = [oefVec2 oefStr(s).mapsHemis{h}];
-                        tdVec2  = [ tdVec2  tdStr(s).mapsHemis{h}];
-                        cVec2   = [  cVec2        s];
-                    end
-                    oefVec_{h} = [oefVec_{h} oefStr(s).mapsHemis{h}];
-                    tdVec_{h}  = [tdVec_{h}    tStr(s).mapsHemis{h}];
-                end
-            end
-            
-            writetable(table(this.sessions', tdVec_{1}', oefVec_{1}', tdVec_{2}', oefVec_{2}'), 'plotOefIndex2ThicknessAlt2.xlsx');
-            
-            rng    = 0.7 < oefVec2 & oefVec2 < 1.6;
-            fprintf('fitglmeOefIndex2ThicknessDiff2:  discarding %g hemispheres\n', length(oefVec2) - sum(rng)); % 2
-            fprintf('fitglmeOefIndex2ThicknessDiff2:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(oefVec2)); % 0.0384615
-            oefVec2 = oefVec2(rng)';
-            tdVec2  = tdVec2(rng)';
-            cVec2   = cVec2(rng)';
-            age     = age(rng)';
-            sex     = sex(rng)';
-            assert(length(oefVec2) == length(tdVec2));
-            assert(length(tdVec2)  == length(cVec2));
-            assert(length(cVec2)   == length(age));
-            assert(length(age)     == length(sex));
-            this.scatter2(oefVec2, tdVec2, 'category', cVec2, 'size', 200);  
-            tbl     = table(oefVec2, age, sex, cVec2, tdVec2);
-            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
-            summary(tbl)
-            mdl     = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)
-            save(sprintf('fitglmeOefIndex2Thickness2_glme_%s_%s.mat', this.territory, this.exclusionLabel)); 
-        end   
-        function fitglmeOefIndex2ThicknessDiff3(this)
-            % plot patients ~30
-            
-            load(this.oefMat, 'oef*');
-            load(this.tdMat, 't*');
-            load(this.age_filename, 'ageAtPresentation');
-            load(this.sex_filename, 'subjectsSex');
-            subjectsSex = double(strcmp('Male', subjectsSex));
-            age2 = ageAtPresentation';
-            sex2 = subjectsSex';
-            
-            oefVec2 = [];
-            tdVec2  = [];
-            cVec2   = [];
-            for s = 1:length(this.sessions)
-                meanOef = [];
-                meanTd  = [];
-                for h = 1:2
-                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        meanOef = [meanOef oefStr(s).mapsHemis{h}];
-                        meanTd  = [meanTd   tdStr(s).mapsHemis{h}];                        
-                    end
-                end
-                oefVec2 = [oefVec2 mean(meanOef)];
-                tdVec2  = [tdVec2  mean(meanTd)];
-                cVec2   = [cVec2   s];
-            end
-            rng = 0.7 < oefVec2 & oefVec2 < 1.6;
-            fprintf('fitglmeOefIndex2ThicknessDiff3:  discarding %g patients\n', length(oefVec2) - sum(rng)); % 1
-            fprintf('fitglmeOefIndex2ThicknessDiff3:  discarding fraction %g of patients\n', 1-sum(rng)/length(oefVec2)); % 0.033333
-            oefVec2 = oefVec2(rng)';
-            tdVec2  = tdVec2(rng)';
-            cVec2   = cVec2(rng)';
-            age2    = age2(rng)'; 
-            sex2    = sex2(rng)';
-            this.scatter2(oefVec2, tdVec2, 'category', cVec2, 'size', 400);  
-            tbl     = table(oefVec2, age2, sex2, cVec2, tdVec2);
-            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'subj' 'thickd'};
-            summary(tbl)
-            mdl     = fitglme(tbl, this.model, 'Link', this.link, 'Distribution', this.distrib)
-            save(sprintf('fitglmeOefIndex2Thickness3_glme_%s_%s.mat', this.territory, this.exclusionLabel)); 
-        end 
-        
-        function plotOefIndex2ThicknessDiff(this)
-            % plot freesurfer regions ~2958
-            load(this.oefMat, 'oef*');
-            load(this.tdMat, 'td*');
-            if (lexist(this.cMat, 'file'))
-                load(this.cMat, 'c*');
-            else
-                cVec = this.categories;
-            end
-            rng = oefVec < 1.6;
-            fprintf('plotOefIndex2ThicknessDiff:  discarding %g regions\n', length(oefVec) - sum(rng)); % 8
-            fprintf('plotOefIndex2ThicknessDiff:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); % 0.00270453
-            x = oefVec(outliers);
-            y = tdVec(outliers);
-            this.scatter(oefVec(rng), tdVec(rng), 'category', cVec(rng)); 
-            mdl = fitlm(x, y)         
-        end    
-        function plotOefIndex2ThicknessDiff_territory(this)
-            % plot freesurfer regions ~2958, color by territory
-            load(this.oefMat, 'oef*');
-            load(this.tdMat, 'td*');
-            this.territory = 'aca_mca_pca';
-            if (lexist(this.cMat, 'file'))
-                load(this.cMat, 'c*');
-            else
-                cVec = this.categories('territory');
-            end
-            rng = oefVec < 1.6;
-            fprintf('plotOefIndex2ThicknessDiff:  discarding %g regions\n', length(oefVec) - sum(rng)); % 8
-            fprintf('plotOefIndex2ThicknessDiff:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); % 0.00270453
-            this.scatter(oefVec(rng), tdVec(rng), 'category', cVec(rng));      
-        end     
-        function plotOefIndex2ThicknessDiff2(this)
-            % plot hemispheres ~51
-            
-            load(this.oefMat, 'oef*');
-            load(this.tdMat, 'td*');
-            load(this.age_filename, 'ageAtPresentation');
-            load(this.sex_filename, 'subjectsSex');
-            
-            oefVec2 = [];
-            tdVec2  = [];
-            cVec2   = [];
-            for s = 1:length(this.sessions)
-                for h = 1:2
-                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        oefVec2 = [oefVec2 oefStr(s).mapsHemis{h} ];
-                        tdVec2  = [ tdVec2  tdStr(s).mapsHemis{h} ];
-                        cVec2   = [  cVec2        s];
-                    end
-                end
-            end
-            outliers = oefVec2 < 0.9;
-            x = oefVec2(outliers);
-            y = tdVec2(outliers);
-            this.scatter2(oefVec2, tdVec2, 'category', cVec2, 'size', 200);  
-            mdl = fitlm(x, y)    
-        end   
-        function plotOefIndex2ThicknessDiff3(this)
-            % plot patients ~30
-            
-            load(this.oefMat, 'oef*');
-            load(this.tdMat, 'td*');
-            
-            oefVec2 = [];
-            tdVec2  = [];
-            cVec2   = [];
-            for s = 1:length(this.sessions)
-                meanOef = [];
-                meanTd  = [];
-                for h = 1:2
-                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
-                        meanOef = [meanOef oefStr(s).mapsHemis{h}];
-                        meanTd  = [meanTd   tdStr(s).mapsHemis{h}];
-                        
-                    end
-                end
-                oefVec2 = [oefVec2 mean(meanOef)];
-                tdVec2  = [tdVec2  mean(meanTd)];
-                cVec2   = [cVec2 s];
-            end
-            outliers = oefVec2 > 0.95 & oefVec2 < 1.2;
-            x = oefVec2(outliers);
-            y = tdVec2(outliers);
-            this.scatter2(x, y, 'category', cVec2(outliers), 'size', 400);  
-            mdl = fitlm(x, y)
-        end 
+            save([fp '.mat']); 
+            diary off
+        end
         
         function inflatedViewThickness(~, varargin)
             % mm-01-{020, 028, 033}
@@ -1387,8 +1312,7 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                 %'surf/%s.pial ' ...
                 %, h, h, h
             popd(pwd0);
-        end
-        
+        end        
     end
     
     %% PRIVATE
@@ -1402,11 +1326,17 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                 all.img = all.img + varargin{i}.img/sum(sum(sum(varargin{i}.img)));
             end
         end
+        function tf = oefrIncreased(oefrVec)
+            %  @param oefrVec is a vector of oefr measurements
+            %  @return tf logical scalar.
+            
+            tf = any(oefrVec > mlanalsis.MoyamoyaPaper.OEF_NORM_UPPER_LIMIT);
+        end  
     end
     
     methods (Access = 'private')
         %-------------------------------------------------------------------------%
-        function setLineOrder(this, axesh1, newLine1, associatedLine1)
+        function setLineOrder(this, axesh1, newLine1, associatedLine1) %#ok<*INUSL>
             %SETLINEORDER(AXESH1,NEWLINE1,ASSOCIATEDLINE1)
             %  Set line order
             %  AXESH1:  axes
@@ -1546,7 +1476,361 @@ classdef MoyamoyaPaper < mlsurfer.SurferData
                 end
             end
         end
-
+        
+        function [oefStr,oefVec] = loadOef(this)%#ok<STOUT>
+            load(this.oefMat, 'oefStr', 'oefVec');
+        end
+        function [tStr,tVec] = loadT(this)%#ok<STOUT>
+            load(this.tMat, 'tStr', 'tVec');
+        end
+        function cVec = loadC(this)            
+            if (lexist(this.cMat, 'file'))
+                load(this.cMat, 'cVec');
+            else
+                cVec = this.categories;
+            end
+        end
+        function ageAtImaging = loadAge(this) %#ok<STOUT>
+            load(this.age_filename, 'ageAtImaging');
+        end
+        function subjectsSex = loadSex(this)
+            load(this.sex_filename, 'subjectsSex');
+            subjectsSex = double(strcmp('Female', subjectsSex)); %#ok<*NODEF>
+        end
+        function timeFromPresentationToImaging = loadTau(this) %#ok<STOUT>
+            load(this.tau_filename, 'timeFromPresentationToImaging');
+        end
+        function d = loadDataForTable1(this)            
+            [oefStr,oefVec] = this.loadOef;
+            [tStr,tVec] = this.loadT;
+            cVec = this.loadC;
+            age = this.loadAge;
+            sex = this.loadSex;
+            tau = this.loadTau;
+            d   = arrangeData(this);
+            
+            function d = arrangeData(this)
+                d.age = this.repelemByOefStr(age, oefStr);
+                d.sex = this.repelemByOefStr(sex, oefStr);
+                d.tau = this.repelemByOefStr(tau, oefStr);            
+                d.oefVec = oefVec;
+                d.tVec   = tVec;
+                d.cVec   = cVec;
+                
+                %% data arranged by sessions<-hemispheres<-exclusiosn<-oefStr().map.keys, which have FreeSurfer region #s
+                
+                for r = 1:length(this.table1rnames)
+                    d.thickness_mean(r) = this.table1mean(d.tVec, r, oefStr);
+                end
+                for r = 1:length(this.table1rnames)
+                    d.thickness_std(r) = this.table1std(d.tVec, r, oefStr);
+                end
+                for r = 1:length(this.table1rnames)
+                    d.oefr_max(r) = this.replaceEmpty(this.table1max(d.oefVec, r, oefStr));
+                end
+                for r = 1:length(this.table1rnames)
+                    d.oefr_mean(r) = this.table1mean(d.oefVec, r, oefStr);
+                end
+                for r = 1:length(this.table1rnames)
+                    d.oefr_std(r) = this.table1std(d.oefVec, r, oefStr);
+                end
+%                 for r = 1:length(this.table1rnames)
+%                     d.oefr_increased(r) = this.table1sum( ...
+%                         this.patientsWithOefrIncreased(d.oefVec, r, oefStr), r, []);
+%                 end
+                for r = 1:length(this.table1rnames)
+                    d.age_mean(r) = this.table1mean(age, r, []);
+                end
+                for r = 1:length(this.table1rnames)
+                    d.age_std(r) = this.table1std(age, r, []);
+                end
+                for r = 1:length(this.table1rnames)
+                    d.sex_male(r) = this.table1sum(1 - sex, r, []);
+                end
+                for r = 1:length(this.table1rnames)
+                    d.sex_female(r) = this.table1sum(sex, r, []);
+                end
+                for r = 1:length(this.table1rnames)
+                    d.tau_mean(r) = this.table1mean(tau, r, []);
+                end
+                for r = 1:length(this.table1rnames)
+                    d.tau_std(r) = this.table1std(tau, r, []);
+                end
+            end
+        end
+        function tf = patientsWithOefrIncreased(this, vec, r, oefStr)
+            rname = this.(this.table1rnames{r});
+            if (islogical(rname))
+                tf = this.patientsWithOefrIncreased_logical(vec, r, oefStr);
+                assert(length(tf) == length(this.sessions));
+                return
+            end
+            if (iscell(rname))
+                tf = this.patientsWithOefrIncreased_cell(vec, r, oefStr);
+                assert(length(tf) == length(this.sessions));
+                return
+            end
+            error('mlanalysis:unsuppotedTypeclass', 'class(MoyamoyaPaper.patientsWithOefrIncreased.rname)->%s', class(rname));
+        end
+        function tf = patientsWithOefrIncreased_logical(this, vec, r, oefStr)
+        end
+        function tf = patientsWithOefrIncreased_cell(this, vec, r, oefStr)
+        end
+        function m = table1max(this, vec, r, oefStr)
+            fun = @max;
+            rname = this.(this.table1rnames{r});
+            if (islogical(rname))
+                m = this.table1fun_logical(vec, r, oefStr, fun);
+                return
+            end
+            if (iscell(rname))
+                m = this.table1fun_cell(vec, r, oefStr, fun);
+                return
+            end
+            error('mlanalysis:unsuppotedTypeclass', 'class(MoyamoyaPaper.table1max.rname)->%s', class(rname));                   
+        end   
+        function m = table1mean(this, vec, r, oefStr)
+            fun = @mean;
+            rname = this.(this.table1rnames{r});
+            if (islogical(rname))
+                m = this.table1fun_logical(vec, r, oefStr, fun);
+                return
+            end
+            if (iscell(rname))
+                m = this.table1fun_cell(vec, r, oefStr, fun);
+                return
+            end
+            error('mlanalysis:unsuppotedTypeclass', 'class(MoyamoyaPaper.table1mean.rname)->%s', class(rname));                   
+        end     
+        function m = table1std(this, vec, r, oefStr)
+            fun = @std;
+            rname = this.(this.table1rnames{r});
+            if (islogical(rname))
+                m = this.table1fun_logical(vec, r, oefStr, fun);
+                return
+            end
+            if (iscell(rname))
+                m = this.table1fun_cell(vec, r, oefStr, fun);
+                return
+            end
+            error('mlanalysis:unsuppotedTypeclass', 'class(MoyamoyaPaper.table1std.rname)->%s', class(rname));                   
+        end 
+        function m = table1sum(this, vec, r, oefStr)
+            fun = @sum;
+            rname = this.(this.table1rnames{r});
+            if (islogical(rname))
+                m = this.table1fun_logical(vec, r, oefStr, fun);
+                return
+            end
+            if (iscell(rname))
+                m = this.table1fun_cell(vec, r, oefStr, fun);
+                return
+            end
+            error('mlanalysis:unsuppotedTypeclass', 'class(MoyamoyaPaper.table1sum.rname)->%s', class(rname));                   
+        end     
+        function f = table1fun_logical(this, vec, r, oefStr, fun)
+            rname = this.(this.table1rnames{r});
+            msk = this.repelemByOefStr(rname, oefStr);
+            msk = logical(msk);
+            assert(length(vec) == length(msk));
+            f = fun(vec(msk));
+        end
+        function f = table1fun_cell(this, vec, r, oefStr, fun)
+            rname = this.(this.table1rnames{r});
+            msk = this.repelemByMatchedHemis(rname, oefStr);
+            msk = logical(msk);
+            assert(length(vec) == length(msk));
+            f = fun(vec(msk));
+        end
+        function tf = matchedHemis(this, msk, hemis)
+            tf = strcmpi(msk, hemis) || strcmpi(msk, 'B');
+        end
+        function num = repelemByOefStr(this, torep, varargin)
+            ip = inputParser;
+            addOptional(ip, 'oefStr', [], @(x) isstruct(x) || isempty(x));
+            parse(ip, varargin{:});
+            
+            num = [];
+            assert(length(torep)  == length(this.sessions));
+            if (isempty(ip.Results.oefStr)) % don't repeat
+                for s = 1:length(this.sessions)
+                    num = [num torep(s)]; % logical
+                end
+                return
+            end
+            assert(length(ip.Results.oefStr) == length(this.sessions));
+            for s = 1:length(this.sessions)
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        num = [num repelem(torep(s), length(ip.Results.oefStr(s).map.keys)/2)]; % logical
+                    end
+                end
+            end
+        end
+        function obj = repelemByMatchedHemis(this, torep, varargin)
+            ip = inputParser;
+            addOptional(ip, 'oefStr', [], @(x) isstruct(x) || isempty(x));
+            parse(ip, varargin{:});
+            
+            obj = [];
+            assert(iscell(torep));
+            assert(length(torep)  == length(this.sessions));
+            if (isempty(ip.Results.oefStr)) % don't repeat   
+                for s = 1:length(this.sessions)
+                    obj = [obj (lstrfind(torep{s}, {'L' 'R' 'B'}) & ~lstrfind(this.exclusions{s}, {'L' 'R' 'B'}))];
+                end
+                return
+            end
+            assert(length(ip.Results.oefStr) == length(this.sessions));
+            for s = 1:length(this.sessions)
+                for h = 1:2
+                    if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                        obj = [obj repelem(this.matchedHemis(torep{s}, this.theHemis{h}), length(ip.Results.oefStr(s).map.keys)/2)]; % logical
+                    end
+                end
+            end
+        end
+        function x = replaceEmpty(this, x)
+            if (isempty(x))
+                x = 0;
+            end
+        end            
+        
+        function d = loadData(this, graining)
+            [oefStr,oefVec] = this.loadOef;
+            [tStr,tVec] = this.loadT;
+            cVec = this.loadC;
+            age = this.loadAge;
+            sex = this.loadSex;
+            tau = this.loadTau;
+            
+            switch (graining)
+                case 'Destrieux'
+                    [d,rng] = arrangeData(this);
+                case 'hemisphere'
+                    [d,rng] = arrangeData2(this);
+                case 'patient'
+                    [d,rng] = arrangeData3(this);
+                otherwise
+                    error('mlanalysis:unsupportedSwitchcase', 'MoyamoyaPaper.loadData.graining->%s', graining);
+            end
+            d.oefVec = d.oefVec(rng)';
+            d.tVec   = d.tVec(rng)';
+            d.cVec   = d.cVec(rng)';
+            d.age    = d.age(rng)'; 
+            d.sex    = d.sex(rng)';
+            d.tau    = d.tau(rng)';
+            assert(length(d.oefVec) == length(d.tVec));
+            assert(length(d.tVec)   == length(d.cVec));
+            assert(length(d.cVec)   == length(d.age));
+            assert(length(d.age)    == length(d.sex));
+            assert(length(d.sex)    == length(d.tau));
+            
+            function [d,rng] = arrangeData(this)
+                d.age = this.repelemByOefStr(age, oefStr); 
+                d.sex = this.repelemByOefStr(sex, oefStr); 
+                d.tau = this.repelemByOefStr(tau, oefStr);    
+                d.oefVec = oefVec;
+                d.tVec   = tVec;
+                d.cVec   = cVec;
+                rng      = this.OEF_MIN < oefVec & oefVec < this.OEF_MAX; % & oefVec ~= 1
+                fprintf('arrangeData:  discarding %g regions\n', length(oefVec) - sum(rng)); 
+                fprintf('arrangeData:  discarding fraction %g of regions\n', 1-sum(rng)/length(oefVec)); 
+            end
+            function [d,rng] = arrangeData2(this)
+                d.age = [];
+                d.sex = [];
+                d.tau = [];
+                for s = 1:length(this.sessions)   
+                    for h = 1:2
+                        if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                            d.age = [d.age age(s)];
+                            d.sex = [d.sex sex(s)];
+                            d.tau = [d.tau tau(s)];
+                        end
+                    end
+                end
+                d.oefVec  =  [];
+                d.tVec    =  [];
+                d.cVec    =  [];
+                d.oefVec_ = {[] []};
+                d.tVec_   = {[] []};
+                for s = 1:length(this.sessions)
+                    for h = 1:2
+                        if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                            d.oefVec = [d.oefVec oefStr(s).mapsHemis{h}];
+                              d.tVec = [  d.tVec   tStr(s).mapsHemis{h}];
+                              d.cVec = [  d.cVec        s];
+                        end
+                        d.oefVec_{h} = [d.oefVec_{h} oefStr(s).mapsHemis{h}];
+                          d.tVec_{h} =   [d.tVec_{h}   tStr(s).mapsHemis{h}];
+                    end
+                end
+                %writetable(table(this.sessions', d.tVec_{1}', d.oefVec_{1}', d.tVec_{2}', d.oefVec_{2}'), ...
+                %    sprintf('fitglmeReviewer2_%s_%s.xlsx', this.territory, this.exclusionLabel));
+                rng      = this.OEF_MIN < d.oefVec & d.oefVec < this.OEF_MAX;
+                fprintf('arrangeData2:  discarding %g hemispheres\n', length(d.oefVec) - sum(rng)); % 2
+                fprintf('arrangeData2:  discarding fraction %g of hemispheres\n', 1-sum(rng)/length(d.oefVec)); % 0.0384615
+            end            
+            function [d,rng] = arrangeData3(this)
+                d.age = [];
+                d.sex = [];
+                d.tau = [];
+                for s = 1:length(this.sessions)
+                    d.age = [d.age age(s)];
+                    d.sex = [d.sex sex(s)];
+                    d.tau = [d.tau tau(s)];
+                end                
+                d.oefVec = [];
+                d.tVec   = [];
+                d.cVec   = [];
+                for s = 1:length(this.sessions)
+                    oefVecH = [];
+                    tVecH   = [];
+                    for h = 1:2
+                        if (~strcmp(this.exclusions{s}, this.theHemis{h}))
+                            oefVecH = [oefVecH oefStr(s).mapsHemis{h}];
+                            tVecH   = [  tVecH   tStr(s).mapsHemis{h}];
+                        end
+                    end
+                    d.oefVec = [d.oefVec mean(oefVecH)];
+                    d.tVec   = [  d.tVec mean(  tVecH)];
+                    d.cVec   = [  d.cVec             s];
+                end
+                %writetable(table(this.sessions', tVec2', oefVec2'), ...
+                %    sprintf('fitglmeReviewer3_%s_%s.xlsx', this.territory, this.exclusionLabel));
+                rng = 1:length(d.oefVec);
+            end
+        end
+        function scatterData(this, d, graining)
+            if (~this.doplot)
+                return
+            end
+            if (strcmp(graining, 'Destrieux'))
+                this.scatter(d.oefVec, d.tVec, 'category', d.cVec, 'predictor', 'OEFR');  
+                this.scatter(d.age,    d.tVec, 'category', d.cVec, 'predictor', 'Age (years)');  
+                this.scatter(d.sex,    d.tVec, 'category', d.cVec, 'predictor', 'Sex', 'xlim', [-0.5 1.5]);  
+                this.scatter(d.tau,    d.tVec, 'category', d.cVec, 'predictor', 'Onset to Scan (months)', 'xlim', [-10 90]);  
+            else
+                this.scatter2(d.oefVec, d.tVec, 'category', d.cVec, 'size', 200, 'predictor', 'OEFR');  
+                this.scatter2(d.age,    d.tVec, 'category', d.cVec, 'size', 200, 'predictor', 'Age (years)');  
+                this.scatter2(d.sex,    d.tVec, 'category', d.cVec, 'size', 200, 'predictor', 'Sex', 'xlim', [-0.5 1.5]);  
+                this.scatter2(d.tau,    d.tVec, 'category', d.cVec, 'size', 200, 'predictor', 'Onset to Scan (months)', 'xlim', [-10 90]);  
+            end
+        end
+        function rho = partialCorrData(this, d)
+            rho = array2table( ...
+                partialcorr([d.oefVec, d.age, d.sex, d.tau, d.tVec]), ...
+                'VariableNames', {'oef' 'age' 'sex' 'tau' 'thickd'}, ...
+                'RowNames', {'oef' 'age' 'sex' 'tau' 'thickd'});
+            disp('Partial Correlation Coefficients');
+            disp(rho);
+        end
+        function tbl = tableGlme(this, d)
+            tbl = table(d.oefVec, d.age, d.sex, d.tau, d.cVec, d.tVec);
+            tbl.Properties.VariableNames = {'oef' 'age' 'sex' 'tau' 'subj' 'thickd'};
+            summary(tbl) 
+        end
         function statsPrintf(this, stats, s, h)
             if (strcmp(this.territory, 'all_aca_mca') || strcmp(this.territory, 'mca_max'))
                 fprintf('%s:  stats(%s, %s):  mean  %4.2f  std  %4.2f  max  %4.2f\n', ...
